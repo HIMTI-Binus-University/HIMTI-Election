@@ -79,6 +79,84 @@ dialog::backdrop {
       transform: translateY(12px);
     }
   }
+  .reveal-count {
+    animation: reveal-count 0.7s ease-out both;
+  }
+  .reveal-bar {
+    width: 0;
+    transition: width 1.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .reveal-bar.is-visible {
+    width: var(--result-width);
+  }
+  .winner-rays {
+    animation: winner-in 0.8s ease-out both;
+  }
+  @keyframes reveal-count {
+    from {
+      opacity: 0;
+      transform: scale(0.7);
+    }
+    45% {
+      opacity: 1;
+    }
+    to {
+      opacity: 0.2;
+      transform: scale(1.15);
+    }
+  }
+  @keyframes winner-in {
+    from {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+  }
+}
+.reveal-grid {
+  opacity: 0.18;
+  background-image:
+    linear-gradient(rgba(103, 232, 249, 0.18) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(103, 232, 249, 0.18) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: radial-gradient(circle, black, transparent 75%);
+}
+.reveal-stage:fullscreen {
+  width: 100vw;
+  max-width: none;
+  min-height: 100dvh;
+  border-radius: 0;
+}
+.reveal-stage:fullscreen > div:not(.reveal-grid) {
+  min-height: calc(100dvh - 6rem);
+}
+.winner-rays {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.winner-rays::before {
+  content: "";
+  position: absolute;
+  inset: 12%;
+  background: repeating-conic-gradient(
+    from 0deg,
+    rgba(103, 232, 249, 0.13) 0 8deg,
+    transparent 8deg 24deg
+  );
+  border-radius: 50%;
+}
+.winner-rays i {
+  --angle: calc(var(--particle) * 30deg);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 18px;
+  border-radius: 2px;
+  background: #67e8f9;
+  transform: rotate(var(--angle)) translateY(-15rem);
+  opacity: 0.65;
 }
 @media (prefers-reduced-motion: reduce) {
   *,

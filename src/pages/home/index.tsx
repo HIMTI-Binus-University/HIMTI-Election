@@ -122,7 +122,7 @@ export default function HomePage() {
             {data.candidates.map((candidate, index) => (
               <article
                 key={candidate.id}
-                className="grid overflow-hidden rounded-[2rem] border border-white bg-white shadow-brand lg:grid-cols-[0.8fr_1.2fr]"
+                className="grid overflow-hidden rounded-[2rem] border border-white bg-white shadow-brand lg:grid-cols-2"
               >
                 <div className={index % 2 ? "lg:order-2" : ""}>
                   <div className="relative aspect-[4/3] overflow-hidden lg:aspect-auto lg:h-full lg:min-h-96">

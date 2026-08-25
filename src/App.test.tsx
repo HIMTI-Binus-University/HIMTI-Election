@@ -28,7 +28,7 @@ const election = {
   slug: "himti-election",
   title: "HIMTI Election",
   description: "Make your choice.",
-  status: "OPEN" as const,
+  status: "OPEN" as "OPEN" | "PUBLISHED",
   startsAt: "2020-01-01T00:00:00.000Z",
   endsAt: "2099-01-01T00:00:00.000Z",
   debateAt: "2098-12-20T12:00:00.000Z",
@@ -45,6 +45,15 @@ let voteStatus = {
   receiptCode: null as string | null,
   votedAt: null as string | null,
 };
+
+let publishedResults: null | {
+  participationCount: number;
+  ballotCount: number;
+  valid: boolean;
+  winnerCandidateId: string | null;
+  isTie: boolean;
+  results: Array<{ candidate: typeof candidate; votes: number }>;
+} = null;
 
 vi.mock("@/api/auth", () => ({
   useSession: () => ({
@@ -88,7 +97,11 @@ vi.mock("@/api/elections", () => ({
     refetch: vi.fn().mockResolvedValue({ data: voteStatus }),
   }),
   useCastVote: () => ({ mutateAsync: castVote, isPending: false }),
-  useResults: () => ({ data: null, isLoading: false, isError: true }),
+  useResults: () => ({
+    data: publishedResults,
+    isLoading: false,
+    isError: !publishedResults,
+  }),
   getApiError: () => ({ code: null, message: "Request failed" }),
 }));
 
@@ -110,6 +123,9 @@ beforeEach(() => {
     votedAt: "2026-01-01T00:00:00.000Z",
   });
   voteStatus = { hasVoted: false, receiptCode: null, votedAt: null };
+  election.status = "OPEN";
+  publishedResults = null;
+  sessionStorage.clear();
 });
 
 afterEach(() => {
@@ -169,4 +185,29 @@ test("receipt status never reveals the candidate choice", () => {
   renderAt("/status");
   expect(screen.getByText("EL-PRIVATE-RECEIPT")).toBeInTheDocument();
   expect(screen.queryByText("Candidate One")).not.toBeInTheDocument();
+});
+
+test("offers and skips the published results ceremony", async () => {
+  election.status = "PUBLISHED";
+  publishedResults = {
+    participationCount: 8,
+    ballotCount: 8,
+    valid: true,
+    winnerCandidateId: candidate.id,
+    isTie: false,
+    results: [{ candidate, votes: 8 }],
+  };
+  const user = userEvent.setup();
+  renderAt("/results");
+  expect(
+    screen.getByRole("heading", { name: "The results are here." }),
+  ).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "View full results" }));
+  expect(
+    screen.getByRole("heading", { name: "Vote breakdown" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("progressbar", { name: "Candidate One: 8 votes" }),
+  ).toHaveAttribute("aria-valuenow", "8");
+  expect(sessionStorage.getItem("results-reveal:election-1")).toBe("complete");
 });
