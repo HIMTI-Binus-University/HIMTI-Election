@@ -17,7 +17,76 @@
   --muted-foreground: 0 0% 35%;
   --border: 0 0% 81%;
   --ring: 213 100% 35%;
+  --brand-navy: 214 100% 15%;
+  --brand-blue: 213 100% 40%;
+  --brand-sky: 197 100% 70%;
+  --brand-pale: 211 100% 96%;
+  --brand-ink: 221 47% 12%;
+  --brand-slate: 215 25% 34%;
 }
 
-* { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; }
+* {
+  box-sizing: border-box;
+}
+html {
+  scroll-behavior: smooth;
+}
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+button,
+a,
+input {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.election-wash {
+  background:
+    radial-gradient(
+      circle at 8% 5%,
+      rgba(100, 204, 255, 0.24),
+      transparent 28rem
+    ),
+    radial-gradient(
+      circle at 94% 18%,
+      rgba(0, 76, 181, 0.12),
+      transparent 24rem
+    ),
+    linear-gradient(180deg, #f7fbff 0%, #f8fafc 48%, #eef5ff 100%);
+}
+.grid-mark {
+  background-image:
+    linear-gradient(rgba(0, 76, 181, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 76, 181, 0.05) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: linear-gradient(to bottom, black, transparent 85%);
+}
+dialog::backdrop {
+  background: rgba(2, 13, 31, 0.64);
+  backdrop-filter: blur(4px);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .page-reveal {
+    animation: page-reveal 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  @keyframes page-reveal {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

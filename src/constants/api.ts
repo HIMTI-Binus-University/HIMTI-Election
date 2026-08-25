@@ -1,3 +1,14 @@
+const election = (electionId: string) => `/v1/elections/${electionId}`;
+
 export const apiPaths = {
-  users: "/users",
+  session: "/auth/get-session",
+  signIn: "/auth/sign-in/social",
+  signOut: "/auth/sign-out",
+  currentUser: "/user/me",
+  currentElection: "/v1/elections/current",
+  candidates: (electionId: string) => `${election(electionId)}/candidates`,
+  eligibility: (electionId: string) => `${election(electionId)}/eligibility`,
+  voteStatus: (electionId: string) => `${election(electionId)}/my-vote-status`,
+  vote: (electionId: string) => `${election(electionId)}/vote`,
+  results: (electionId: string) => `${election(electionId)}/results`,
 } as const;
