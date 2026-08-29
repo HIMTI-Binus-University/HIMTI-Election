@@ -259,7 +259,15 @@ export function ResultsReveal({
           )}
           <div>
             {uniqueWinner && (
-              <Award className="mx-auto size-16 text-cyan-300" />
+              <>
+                <div className="mx-auto aspect-square w-40 overflow-hidden rounded-full border-4 border-cyan-300 shadow-[0_0_45px_rgba(103,232,249,0.35)] sm:w-52">
+                  <CandidateImage
+                    src={leaders[0]?.candidate.photoUrl ?? null}
+                    name={leaders[0]?.candidate.name ?? "Election winner"}
+                  />
+                </div>
+                <Award className="mx-auto mt-5 size-12 text-cyan-300" />
+              </>
             )}
             <p className="mt-5 text-xs font-bold uppercase tracking-[0.22em] text-brand-sky">
               Official result
@@ -268,7 +276,7 @@ export function ResultsReveal({
               {data.isTie
                 ? "A tied result"
                 : data.winnerCandidateId
-                  ? leaders[0]?.candidate.name
+                  ? `Congratulations, ${leaders[0]?.candidate.name}!`
                   : "No winner determined"}
             </h2>
             {data.isTie && (
