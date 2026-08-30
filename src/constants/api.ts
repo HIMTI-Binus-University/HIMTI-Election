@@ -1,11 +1,11 @@
-const election = (electionId: string) => `/v1/elections/${electionId}`;
+const election = (electionId: string) => `/elections/${electionId}`;
 
 export const apiPaths = {
   session: "/auth/get-session",
   signIn: "/auth/sign-in/social",
   signOut: "/auth/sign-out",
   currentUser: "/user/me",
-  currentElection: "/v1/elections/current",
+  currentElection: "/elections/current",
   candidates: (electionId: string) => `${election(electionId)}/candidates`,
   eligibility: (electionId: string) => `${election(electionId)}/eligibility`,
   voteStatus: (electionId: string) => `${election(electionId)}/my-vote-status`,
