@@ -17,10 +17,28 @@ export default function ResultsPage() {
         <LoadingState label="Loading election results" />
       </PageLayout>
     );
-  if (election.isError || !election.data)
+  if (election.isError)
     return (
       <PageLayout>
         <ErrorState retry={() => void election.refetch()} />
+      </PageLayout>
+    );
+  if (!election.data)
+    return (
+      <PageLayout>
+        <section className="page-reveal mx-auto max-w-xl rounded-3xl border border-white bg-white p-8 text-center shadow-brand sm:p-11">
+          <Clock3
+            className="mx-auto size-12 text-brand-blue"
+            aria-hidden="true"
+          />
+          <h1 className="mt-5 text-3xl font-bold text-brand-navy">
+            No election is active
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-brand-slate">
+            Results will appear here after the next HIMTI Election concludes and
+            its tally is published.
+          </p>
+        </section>
       </PageLayout>
     );
   if (election.data.status !== "PUBLISHED" || results.isError)

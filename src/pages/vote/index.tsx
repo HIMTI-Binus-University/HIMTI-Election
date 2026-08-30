@@ -40,8 +40,23 @@ function Ballot() {
 
   if (election.isLoading || eligibility.isLoading || voteStatus.isLoading)
     return <LoadingState label="Preparing your ballot" />;
-  if (election.isError || !election.data)
+  if (election.isError)
     return <ErrorState retry={() => void election.refetch()} />;
+  if (!election.data)
+    return (
+      <section className="page-reveal mx-auto max-w-xl rounded-3xl border border-white bg-white p-8 text-center shadow-brand sm:p-11">
+        <ShieldCheck
+          className="mx-auto size-12 text-brand-blue"
+          aria-hidden="true"
+        />
+        <h1 className="mt-5 text-3xl font-bold text-brand-navy">
+          No election is active
+        </h1>
+        <p className="mt-3 text-sm leading-6 text-brand-slate">
+          The ballot will become available when the next HIMTI Election opens.
+        </p>
+      </section>
+    );
   if (eligibility.isError || voteStatus.isError)
     return (
       <ErrorState

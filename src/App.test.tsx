@@ -171,6 +171,20 @@ test("shows an empty state when candidates have no active election", () => {
   ).not.toBeInTheDocument();
 });
 
+test.each(["/vote", "/results"])(
+  "shows an empty state at %s when no election is active",
+  (path) => {
+    currentElection = null;
+    renderAt(path);
+    expect(
+      screen.getByRole("heading", { name: "No election is active" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("We could not load this page"),
+    ).not.toBeInTheDocument();
+  },
+);
+
 test("requires review and final acknowledgment before submitting", async () => {
   const user = userEvent.setup();
   renderAt("/vote");
