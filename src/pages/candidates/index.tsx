@@ -35,10 +35,28 @@ export default function CandidatesPage() {
         <LoadingState label="Loading candidates" />
       </PageLayout>
     );
-  if (election.isError || !election.data)
+  if (election.isError)
     return (
       <PageLayout>
         <ErrorState retry={() => void election.refetch()} />
+      </PageLayout>
+    );
+  if (!election.data)
+    return (
+      <PageLayout>
+        <section className="page-reveal mx-auto max-w-xl rounded-3xl border border-white bg-white p-8 text-center shadow-brand sm:p-11">
+          <Vote
+            className="mx-auto size-12 text-brand-blue"
+            aria-hidden="true"
+          />
+          <h1 className="mt-5 text-3xl font-bold text-brand-navy">
+            No election is active
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-brand-slate">
+            Candidate profiles will appear here when the next HIMTI Election is
+            ready.
+          </p>
+        </section>
       </PageLayout>
     );
   const selectedId = params.get("candidate") ?? election.data.candidates[0]?.id;

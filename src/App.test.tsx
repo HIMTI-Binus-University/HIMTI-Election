@@ -40,6 +40,8 @@ const election = {
   candidates: [candidate],
 };
 
+let currentElection: typeof election | null = election;
+
 let voteStatus = {
   hasVoted: false,
   receiptCode: null as string | null,
@@ -79,7 +81,7 @@ vi.mock("@/api/auth", () => ({
 
 vi.mock("@/api/elections", () => ({
   useCurrentElection: () => ({
-    data: election,
+    data: currentElection,
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
@@ -124,6 +126,7 @@ beforeEach(() => {
   });
   voteStatus = { hasVoted: false, receiptCode: null, votedAt: null };
   election.status = "OPEN";
+  currentElection = election;
   publishedResults = null;
   sessionStorage.clear();
 });
@@ -155,6 +158,17 @@ test("switches candidate content on the candidates page", async () => {
     "https://www.youtube.com/embed/sample",
   );
   expect(screen.getByText("Program One")).toBeInTheDocument();
+});
+
+test("shows an empty state when candidates have no active election", () => {
+  currentElection = null;
+  renderAt("/candidates");
+  expect(
+    screen.getByRole("heading", { name: "No election is active" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByText("We could not load this page"),
+  ).not.toBeInTheDocument();
 });
 
 test("requires review and final acknowledgment before submitting", async () => {
