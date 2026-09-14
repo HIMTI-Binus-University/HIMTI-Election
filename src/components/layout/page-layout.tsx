@@ -20,7 +20,14 @@ export function PageLayout({ children }: { children: ReactNode }) {
             to="/"
             className="flex items-center gap-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
           >
-            <img src="/icon-primary.svg" alt="" className="h-11 w-auto" />
+            <img
+              data-himti-brand-target="navbar"
+              src="/logo-himti.png"
+              width={44}
+              height={44}
+              alt=""
+              className="size-11 object-contain"
+            />
             <span className="hidden sm:block">
               <span className="block text-sm font-bold text-brand-navy">
                 HIMTI BINUS

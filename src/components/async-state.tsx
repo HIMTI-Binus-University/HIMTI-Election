@@ -1,22 +1,12 @@
-import { AlertCircle, LoaderCircle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AppLoading } from "@/components/app-motion";
 
 export const LoadingState = ({
   label = "Loading election",
 }: {
   label?: string;
-}) => (
-  <div
-    role="status"
-    className="mx-auto flex min-h-[50vh] max-w-xl flex-col items-center justify-center text-center"
-  >
-    <LoaderCircle
-      className="size-9 animate-spin text-brand-blue"
-      aria-hidden="true"
-    />
-    <p className="mt-4 text-sm font-semibold text-brand-slate">{label}</p>
-  </div>
-);
+}) => <AppLoading label={label} />;
 
 export const ErrorState = ({
   title = "We could not load this page",
