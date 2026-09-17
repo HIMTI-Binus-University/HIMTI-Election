@@ -19,7 +19,6 @@ export interface Candidate {
   videoUrl: string | null;
   workPrograms: string[];
   experiences: string[];
-  position: number;
   isActive: boolean;
 }
 

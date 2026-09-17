@@ -1,4 +1,10 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BrowserRouter } from "react-router-dom";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
@@ -19,7 +25,6 @@ const candidate = {
   videoUrl: "https://www.youtube.com/watch?v=sample",
   workPrograms: ["Program One"],
   experiences: ["Organization experience"],
-  position: 0,
   isActive: true,
 };
 
@@ -238,4 +243,32 @@ test("offers and skips the published results ceremony", async () => {
     screen.getByRole("progressbar", { name: "Candidate One: 8 votes" }),
   ).toHaveAttribute("aria-valuenow", "8");
   expect(sessionStorage.getItem("results-reveal:election-1")).toBe("complete");
+});
+
+test("starts with a countdown before the ceremonial ballot race", async () => {
+  vi.useFakeTimers();
+  election.status = "PUBLISHED";
+  publishedResults = {
+    participationCount: 8,
+    ballotCount: 8,
+    valid: true,
+    winnerCandidateId: candidate.id,
+    isTie: false,
+    results: [{ candidate, votes: 8 }],
+  };
+  renderAt("/results");
+
+  fireEvent.click(screen.getByRole("button", { name: "Begin reveal" }));
+  expect(screen.getAllByText("3")).toHaveLength(2);
+  expect(
+    screen.queryByRole("heading", { name: /congratulations/i }),
+  ).not.toBeInTheDocument();
+
+  for (let tick = 0; tick < 3; tick += 1) {
+    await act(() => vi.advanceTimersByTimeAsync(700));
+  }
+  expect(
+    screen.getByRole("heading", { name: "The ballot race is on" }),
+  ).toBeInTheDocument();
+  vi.useRealTimers();
 });
