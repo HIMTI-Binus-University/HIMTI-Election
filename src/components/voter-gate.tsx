@@ -1,6 +1,7 @@
 import axios from "axios";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
+import apiClient from "@/config/api-client";
 import {
   needsProfileCompletion,
   signInWithGoogle,
@@ -10,6 +11,38 @@ import {
 import { ErrorState, LoadingState } from "@/components/async-state";
 import { Button } from "@/components/ui/button";
 import { buildRegistrationUrl } from "@/config/runtime";
+
+function DevLogin({ returnPath }: { returnPath: string }) {
+  const [enabled, setEnabled] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+  useEffect(() => {
+    let active = true;
+    void apiClient.get<{ enabled: boolean }>("/auth/dev-login")
+      .then(({ data }) => { if (active) setEnabled(data.enabled === true); })
+      .catch(() => { if (active) setEnabled(false); });
+    return () => { active = false; };
+  }, []);
+  if (!enabled) return null;
+  const signIn = async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      await apiClient.post("/auth/dev-login", {}, { withCredentials: true });
+      sessionStorage.setItem("himti-election:return-path", returnPath);
+      window.location.assign("/auth/callback");
+    } catch {
+      setError(true);
+      setLoading(false);
+    }
+  };
+  return <>
+    <Button className="mt-3 w-full sm:w-auto" disabled={loading} onClick={() => void signIn()}>
+      {loading ? "Signing in..." : "Development System login"}
+    </Button>
+    {error && <p role="alert" className="mt-3 text-sm text-red-700">Development sign-in failed. Please try again.</p>}
+  </>;
+}
 
 export const VoterGate = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
@@ -38,6 +71,7 @@ export const VoterGate = ({ children }: { children: ReactNode }) => {
         >
           Sign in with Google
         </Button>
+        <DevLogin returnPath={returnPath} />
       </section>
     );
   if (profile.isError) {

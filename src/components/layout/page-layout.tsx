@@ -15,7 +15,7 @@ export function PageLayout({ children }: { children: ReactNode }) {
         className="grid-mark pointer-events-none absolute inset-x-0 top-0 h-[34rem]"
       />
       <header className="relative z-20 px-4 pt-4 sm:px-6 sm:pt-6">
-        <div className="mx-auto flex max-w-6xl items-center justify-between rounded-2xl border border-white/80 bg-white/90 px-4 py-3 shadow-[0_10px_30px_-22px_rgba(0,33,79,0.6)] backdrop-blur sm:px-5">
+        <div className="mx-auto grid max-w-6xl grid-cols-[1fr_auto] items-center rounded-2xl border border-white/80 bg-white/90 px-4 py-3 shadow-[0_10px_30px_-22px_rgba(0,33,79,0.6)] backdrop-blur sm:grid-cols-[1fr_auto_1fr] sm:px-5">
           <Link
             to="/"
             className="flex items-center gap-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
@@ -65,16 +65,18 @@ export function PageLayout({ children }: { children: ReactNode }) {
             >
               Results
             </Link>
+          </nav>
+          <div className="hidden justify-self-end sm:block">
             {session.data ? (
               <Button className="px-4" onClick={() => void signOut()}>
                 <LogOut className="size-4" aria-hidden="true" />
                 <span>Sign out</span>
               </Button>
             ) : null}
-          </nav>
+          </div>
           <button
             type="button"
-            className="grid size-11 place-items-center rounded-xl border border-border bg-white text-brand-navy sm:hidden"
+            className="grid size-11 place-items-center justify-self-end rounded-xl border border-border bg-white text-brand-navy sm:hidden"
             aria-label={
               menuOpen ? "Close navigation menu" : "Open navigation menu"
             }
@@ -100,7 +102,7 @@ export function PageLayout({ children }: { children: ReactNode }) {
               <Link
                 key={to}
                 to={to}
-                className="rounded-xl px-4 py-3 font-semibold text-brand-slate hover:bg-brand-pale hover:text-brand-blue"
+                className="rounded-xl px-4 py-3 text-center font-semibold text-brand-slate hover:bg-brand-pale hover:text-brand-blue"
                 onClick={() => setMenuOpen(false)}
               >
                 {label}
@@ -122,22 +124,9 @@ export function PageLayout({ children }: { children: ReactNode }) {
         {children}
       </main>
       <footer className="relative z-10 px-4 pb-8 sm:px-6">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-5 rounded-2xl border border-white/80 bg-white/75 px-5 py-5 text-sm font-semibold text-brand-slate backdrop-blur sm:flex-row">
-          <nav
-            className="flex flex-wrap justify-center gap-5"
-            aria-label="Footer navigation"
-          >
-            <Link to="/" className="hover:text-brand-blue">
-              Home
-            </Link>
-            <Link to="/candidates" className="hover:text-brand-blue">
-              Candidates
-            </Link>
-            <Link to="/vote" className="hover:text-brand-blue">
-              Vote
-            </Link>
-          </nav>
-          <p className="text-center text-xs">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 rounded-2xl border border-white/80 bg-white/75 px-5 py-5 text-center text-sm font-semibold text-brand-slate backdrop-blur sm:flex-row">
+          <p>HIMTI Election</p>
+          <p className="text-xs">
             © {new Date().getFullYear()} HIMTI BINUS University
           </p>
         </div>
