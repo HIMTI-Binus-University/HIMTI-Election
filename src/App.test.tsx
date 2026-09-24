@@ -22,7 +22,7 @@ const candidate = {
   slogan: "One family, one goal",
   vision: "A clear vision for HIMTI.",
   mission: "A practical mission for HIMTI.",
-  videoUrl: "https://www.youtube.com/watch?v=sample",
+  videoUrl: "https://www.youtube.com/watch?v=sample" as string | null,
   workPrograms: ["Program One"],
   experiences: ["Organization experience"],
   isActive: true,
@@ -191,16 +191,45 @@ test("home orders milestones and keeps voting actions synchronized with the wind
   ).not.toBeInTheDocument();
 });
 
-test("switches candidate content on the candidates page", async () => {
+test("candidate selection updates the profile, video, and vote target", async () => {
+  currentElection = {
+    ...election,
+    candidates: [
+      candidate,
+      {
+        ...candidate,
+        id: "candidate-2",
+        ballotNumber: 2,
+        name: "Candidate Two",
+        videoUrl: null,
+        workPrograms: ["Second candidate program"],
+        vision: "Second candidate vision",
+      },
+    ],
+  };
   renderAt("/candidates");
-  expect(
-    screen.getByRole("heading", { name: "Our Candidates" }),
-  ).toBeInTheDocument();
   expect(screen.getByTitle("Candidate One campaign video")).toHaveAttribute(
     "src",
     "https://www.youtube.com/embed/sample",
   );
-  expect(screen.getByText("Program One")).toBeInTheDocument();
+  await userEvent.click(
+    screen.getByRole("button", { name: /Candidate #02 Candidate Two/ }),
+  );
+  const profile = screen.getByRole("article", {
+    name: "Candidate Two profile",
+  });
+  expect(profile).toHaveTextContent("Second candidate vision");
+  expect(profile).toHaveTextContent("Second candidate program");
+  expect(
+    screen.queryByTitle("Candidate One campaign video"),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByText("Candidate video will be available soon"),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("link", { name: "Vote for this candidate" }),
+  ).toHaveAttribute("href", "/vote");
+  expect(window.location.search).toBe("?candidate=candidate-2");
 });
 
 test("shows an empty state when candidates have no active election", () => {
@@ -233,7 +262,7 @@ test("requires review and final acknowledgment before submitting", async () => {
   renderAt("/vote");
 
   await user.click(
-    screen.getByRole("radio", { name: /candidate 1 candidate one/i }),
+    screen.getByRole("radio", { name: /candidate #01 candidate one/i }),
   );
   await user.click(screen.getByRole("button", { name: "Review your vote" }));
 

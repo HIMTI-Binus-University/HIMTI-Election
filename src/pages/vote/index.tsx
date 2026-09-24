@@ -1,5 +1,6 @@
 import { AlertTriangle, Check, ShieldCheck } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   getApiError,
@@ -109,147 +110,176 @@ function Ballot() {
   };
 
   return (
-    <div className="page-reveal mx-auto max-w-5xl">
-      <div className="text-center">
-        <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-blue">
-          Official ballot
-        </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-brand-navy sm:text-4xl">
-          Choose one candidate
-        </h1>
-        <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-brand-slate">
-          Your selection is not submitted until you review and confirm it.
-        </p>
-      </div>
-      <fieldset className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        <legend className="sr-only">Election candidates</legend>
-        {election.data.candidates.map((item) => (
-          <label
-            key={item.id}
-            className={cn(
-              "relative cursor-pointer overflow-hidden rounded-3xl border-2 bg-white shadow-sm transition focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
-              selected === item.id
-                ? "border-brand-blue bg-brand-pale/30 shadow-brand"
-                : "border-transparent hover:border-brand-blue/25",
-            )}
-          >
-            <input
-              type="radio"
-              name="candidate"
-              value={item.id}
-              checked={selected === item.id}
-              onChange={() => setSelected(item.id)}
-              className="sr-only"
-            />
-            <div className="aspect-[4/3]">
-              <CandidateImage src={item.photoUrl} name={item.name} />
-            </div>
-            <div className="p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <span className="text-xs font-bold uppercase tracking-[0.1em] text-brand-blue">
-                    Candidate {item.ballotNumber}
-                  </span>
-                  <h2 className="mt-1 text-xl font-bold text-brand-navy">
-                    {item.name}
-                  </h2>
-                </div>
-                {selected === item.id ? (
-                  <span className="grid size-7 shrink-0 place-items-center rounded-full bg-brand-blue text-white">
-                    <Check className="size-4" />
-                  </span>
-                ) : null}
-              </div>
-              <p className="mt-3 line-clamp-3 text-sm leading-6 text-brand-slate">
-                {item.vision}
-              </p>
-            </div>
-          </label>
-        ))}
-      </fieldset>
-      <div className="mt-8 flex justify-center">
-        <Button
-          disabled={!selected}
-          onClick={() => {
-            setAcknowledged(false);
-            setError("");
-            dialogRef.current?.showModal();
-          }}
-        >
-          Review your vote
-        </Button>
-      </div>
-      <dialog
-        ref={dialogRef}
-        aria-labelledby="confirm-title"
-        className="w-[calc(100%-2rem)] max-w-lg rounded-3xl border-0 bg-white p-0 shadow-2xl"
-      >
-        <div className="p-6 sm:p-8">
-          <span className="grid size-12 place-items-center rounded-2xl bg-amber-50 text-amber-700">
-            <AlertTriangle className="size-6" />
-          </span>
-          <h2
-            id="confirm-title"
-            className="mt-5 text-2xl font-bold text-brand-navy"
-          >
-            Confirm your final vote
-          </h2>
-          {candidate ? (
-            <div className="mt-5 flex items-center gap-4 rounded-2xl bg-brand-pale p-4">
-              <div className="size-16 overflow-hidden rounded-xl">
-                <CandidateImage
-                  src={candidate.photoUrl}
-                  name={candidate.name}
+    <>
+      <div className="mx-auto max-w-6xl space-y-9 sm:space-y-12">
+        <header className="rounded-xl border border-brand-blue/20 bg-brand-pale px-6 py-9 sm:px-10 sm:py-12">
+          <p className="text-sm font-semibold text-brand-blue">
+            {election.data.title}
+          </p>
+          <h1 className="mt-3 text-4xl font-bold leading-tight tracking-tight text-brand-navy sm:text-5xl">
+            Choose one candidate
+          </h1>
+          <p className="mt-4 text-base leading-7 text-brand-slate">
+            Your selection is not submitted until you review and confirm it.
+          </p>
+        </header>
+        <fieldset className="flex flex-wrap justify-center gap-4">
+          <legend className="sr-only">Election candidates</legend>
+          {[...election.data.candidates]
+            .sort((a, b) => a.ballotNumber - b.ballotNumber)
+            .map((item) => (
+              <label
+                key={item.id}
+                className={cn(
+                  "relative w-full max-w-sm cursor-pointer overflow-hidden rounded-xl border bg-white transition-colors focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 sm:w-[calc(50%-0.5rem)] lg:w-[calc(33.333%-0.667rem)]",
+                  selected === item.id
+                    ? "border-brand-blue ring-1 ring-brand-blue"
+                    : "border-border hover:border-brand-blue",
+                )}
+              >
+                <input
+                  type="radio"
+                  name="candidate"
+                  value={item.id}
+                  checked={selected === item.id}
+                  onChange={() => setSelected(item.id)}
+                  className="sr-only"
                 />
-              </div>
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.1em] text-brand-blue">
-                  Candidate {candidate.ballotNumber}
-                </p>
-                <p className="mt-1 font-bold text-brand-navy">
-                  {candidate.name}
-                </p>
-              </div>
-            </div>
-          ) : null}
-          <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-xl border border-border p-4">
-            <input
-              type="checkbox"
-              checked={acknowledged}
-              onChange={(event) => setAcknowledged(event.target.checked)}
-              className="mt-1 size-4 accent-[#004cb5]"
-            />
-            <span className="text-sm leading-6 text-brand-slate">
-              I understand that this vote is final and cannot be changed.
-            </span>
-          </label>
-          {error ? (
-            <p
-              role="alert"
-              className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"
-            >
-              {error}
+                <div className="aspect-[4/3] overflow-hidden bg-brand-pale">
+                  <CandidateImage
+                    src={item.photoUrl}
+                    name={item.name}
+                    className="bg-brand-pale bg-none text-brand-slate"
+                  />
+                </div>
+                <div className="p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <span className="text-sm font-semibold text-brand-blue">
+                        Candidate #{String(item.ballotNumber).padStart(2, "0")}
+                      </span>
+                      <h2 className="mt-1 break-words text-xl font-bold text-brand-navy">
+                        {item.name}
+                      </h2>
+                    </div>
+                    {selected === item.id ? (
+                      <span className="grid size-7 shrink-0 place-items-center rounded-full bg-brand-blue text-white">
+                        <Check className="size-4" />
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-3 line-clamp-3 text-sm leading-6 text-brand-slate">
+                    {item.vision}
+                  </p>
+                </div>
+              </label>
+            ))}
+        </fieldset>
+        <div className="flex flex-col gap-5 rounded-xl bg-brand-pale p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+          <div>
+            <h2 className="text-xl font-bold text-brand-navy">
+              Ready to review?
+            </h2>
+            <p className="mt-1 text-sm leading-6 text-brand-slate">
+              Check your selection before submitting your final vote.
             </p>
-          ) : null}
-          <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            <Button
-              variant="outline"
-              disabled={castVote.isPending}
-              onClick={() => dialogRef.current?.close()}
-            >
-              Go back
-            </Button>
-            <Button
-              disabled={!acknowledged || castVote.isPending}
-              onClick={() => void submit()}
-            >
-              <ShieldCheck className="size-4" />
-              {castVote.isPending ? "Submitting..." : "Submit final vote"}
-            </Button>
           </div>
+          <Button
+            className="shrink-0 px-7 py-4 text-base"
+            disabled={!selected}
+            onClick={() => {
+              setAcknowledged(false);
+              setError("");
+              dialogRef.current?.showModal();
+            }}
+          >
+            Review your vote
+          </Button>
         </div>
-      </dialog>
-    </div>
+      </div>
+      {createPortal(
+        <dialog
+          ref={dialogRef}
+          aria-labelledby="confirm-title"
+          className="fixed inset-0 m-auto h-fit max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-xl border-0 bg-white p-0 shadow-2xl"
+        >
+          <div className="p-6 sm:p-8">
+            <div className="flex items-center gap-3">
+              <span
+                className="grid size-10 shrink-0 place-items-center rounded-lg bg-amber-50 text-amber-700"
+                aria-hidden="true"
+              >
+                <AlertTriangle className="size-5" />
+              </span>
+              <h2
+                id="confirm-title"
+                className="text-xl font-bold text-brand-navy sm:text-2xl"
+              >
+                Confirm your final vote
+              </h2>
+            </div>
+            {candidate ? (
+              <div className="mt-5 flex items-center gap-4 rounded-lg bg-brand-pale p-4">
+                <div className="size-16 overflow-hidden rounded-lg">
+                  <CandidateImage
+                    src={candidate.photoUrl}
+                    name={candidate.name}
+                  />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-brand-blue">
+                    Candidate #{String(candidate.ballotNumber).padStart(2, "0")}
+                  </p>
+                  <p className="mt-1 font-bold text-brand-navy">
+                    {candidate.name}
+                  </p>
+                </div>
+              </div>
+            ) : null}
+            <label className="relative mt-5 flex cursor-pointer items-start gap-3 rounded-xl border border-border p-4">
+              <input
+                type="checkbox"
+                checked={acknowledged}
+                onChange={(event) => setAcknowledged(event.target.checked)}
+                className="peer mt-1 size-5 shrink-0 cursor-pointer appearance-none rounded border border-border bg-white text-white checked:border-primary checked:bg-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              />
+              <Check
+                className="pointer-events-none absolute ml-0.5 mt-1.5 size-4 stroke-[3] text-white opacity-0 peer-checked:opacity-100"
+                aria-hidden="true"
+              />
+              <span className="text-sm leading-6 text-brand-slate">
+                I understand that this vote is final and cannot be changed.
+              </span>
+            </label>
+            {error ? (
+              <p
+                role="alert"
+                className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+              >
+                {error}
+              </p>
+            ) : null}
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <Button
+                variant="outline"
+                disabled={castVote.isPending}
+                onClick={() => dialogRef.current?.close()}
+              >
+                Go back
+              </Button>
+              <Button
+                disabled={!acknowledged || castVote.isPending}
+                onClick={() => void submit()}
+              >
+                <ShieldCheck className="size-4" />
+                {castVote.isPending ? "Submitting..." : "Submit final vote"}
+              </Button>
+            </div>
+          </div>
+        </dialog>,
+        document.body,
+      )}
+    </>
   );
 }
 

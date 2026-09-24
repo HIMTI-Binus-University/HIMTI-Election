@@ -98,7 +98,7 @@ export default function HomePage() {
             {data.title}
           </h1>
           {data.description && (
-            <p className="mt-4 max-w-2xl whitespace-pre-line break-words text-base leading-7 text-brand-slate">
+            <p className="mt-4 whitespace-pre-line break-words text-base leading-7 text-brand-slate">
               {data.description}
             </p>
           )}
