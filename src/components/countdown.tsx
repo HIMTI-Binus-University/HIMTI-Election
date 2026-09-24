@@ -1,65 +1,53 @@
-import { useEffect, useState } from "react";
+import { formatElectionDate } from "@/utils/date";
 
-const getRemaining = (target: string, now: number) => {
-  const distance = Math.max(0, new Date(target).getTime() - now);
-  return {
+export const ElectionCountdown = ({
+  target,
+  label,
+  now,
+}: {
+  target: string | null;
+  label: string;
+  now: number;
+}) => {
+  const distance = target ? Math.max(0, new Date(target).getTime() - now) : 0;
+  const remaining = {
     days: Math.floor(distance / 86_400_000),
     hours: Math.floor((distance % 86_400_000) / 3_600_000),
     minutes: Math.floor((distance % 3_600_000) / 60_000),
     seconds: Math.floor((distance % 60_000) / 1_000),
   };
-};
-
-export const ElectionCountdown = ({
-  startsAt,
-  endsAt,
-}: {
-  startsAt: string;
-  endsAt: string;
-}) => {
-  const [now, setNow] = useState<number | null>(null);
-
-  useEffect(() => {
-    const start = window.setTimeout(() => setNow(Date.now()), 0);
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => {
-      window.clearTimeout(start);
-      window.clearInterval(timer);
-    };
-  }, []);
-
-  const beforeStart = now !== null && now < new Date(startsAt).getTime();
-  const expired = now !== null && now >= new Date(endsAt).getTime();
-  const target = beforeStart ? startsAt : endsAt;
-  const remaining = getRemaining(target, now ?? new Date(startsAt).getTime());
 
   return (
-    <section className="rounded-[2rem] border border-white bg-white/85 px-5 py-8 text-center shadow-brand backdrop-blur sm:px-10 sm:py-11">
-      <p className="text-sm font-bold uppercase tracking-[0.14em] text-brand-blue">
-        {expired
-          ? "Voting has ended"
-          : beforeStart
-            ? "Voting begins in"
-            : "Voting ends in"}
-      </p>
-      <div
-        className="mx-auto mt-7 grid max-w-3xl grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5"
-        aria-live="polite"
+    <section
+      aria-label="Election countdown"
+      className="flex min-h-[19rem] flex-col justify-center rounded-xl bg-gradient-to-br from-brand-navy via-brand-blue to-brand-navy px-5 py-9 text-white sm:min-h-[22rem] sm:px-10 lg:px-14"
+    >
+      <h2
+        className="text-center text-xl font-bold [text-wrap:balance] sm:text-2xl"
+        role="status"
       >
-        {Object.entries(remaining).map(([label, value]) => (
-          <div
-            key={label}
-            className="rounded-2xl bg-brand-navy px-3 py-5 text-white sm:py-7"
-          >
-            <span className="block text-4xl font-bold tabular-nums sm:text-5xl">
-              {String(value).padStart(2, "0")}
-            </span>
-            <span className="mt-2 block text-xs font-bold uppercase tracking-[0.1em] text-white/60">
-              {label}
-            </span>
-          </div>
-        ))}
-      </div>
+        {label}
+        {target && (
+          <span className="sr-only">: {formatElectionDate(target)}</span>
+        )}
+      </h2>
+      {target && (
+        <dl className="mx-auto mt-7 grid w-full max-w-4xl grid-cols-4 gap-2 sm:mt-9 sm:gap-4">
+          {Object.entries(remaining).map(([unit, value]) => (
+            <div
+              key={unit}
+              className="flex min-w-0 flex-col-reverse text-center"
+            >
+              <dt className="mt-3 text-xs font-semibold capitalize text-white/80 sm:mt-5 sm:text-sm">
+                {unit}
+              </dt>
+              <dd className="grid min-h-20 place-items-center rounded-lg border border-white/25 bg-gradient-to-br from-white/25 via-white/10 to-white/5 text-3xl font-bold tabular-nums tracking-tight backdrop-blur-sm sm:min-h-28 sm:text-5xl lg:min-h-32 lg:text-6xl">
+                {String(value).padStart(2, "0")}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
     </section>
   );
 };

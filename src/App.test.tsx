@@ -141,16 +141,54 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-test("renders the live election and candidate", () => {
+test("home orders milestones and keeps voting actions synchronized with the window", () => {
+  currentElection = {
+    ...election,
+    startsAt: "2026-01-01T00:00:02.000Z",
+    endsAt: "2026-01-01T00:00:04.000Z",
+    debateAt: "2026-01-01T00:00:06.000Z",
+    candidates: [
+      candidate,
+      {
+        ...candidate,
+        id: "candidate-2",
+        ballotNumber: 2,
+        name: "Candidate Two",
+      },
+      {
+        ...candidate,
+        id: "candidate-3",
+        ballotNumber: 3,
+        name: "Candidate Three",
+      },
+    ],
+  };
   renderAt("/");
+  const timeline = screen.getByRole("list", { name: "Election timeline" });
   expect(
-    screen.getByRole("heading", { name: "HIMTI Election" }),
-  ).toBeInTheDocument();
+    Array.from(timeline.querySelectorAll("h3"), (item) => item.textContent),
+  ).toEqual(["Voting opens", "Voting closes", "Candidate debate"]);
+  expect(screen.queryByText("Passed")).not.toBeInTheDocument();
+  expect(screen.getByText("Candidate #03")).toBeInTheDocument();
   expect(
-    screen.getByRole("heading", { name: "Candidate One" }),
-  ).toBeInTheDocument();
-  expect(screen.getByText("Voting ends in")).toBeInTheDocument();
-  expect(screen.getByText("Election Schedule")).toBeInTheDocument();
+    screen.getByRole("link", { name: "View Candidate Three's profile" }),
+  ).toHaveAttribute("href", "/candidates?candidate=candidate-3");
+  expect(screen.getByRole("button", { name: "Cast your vote" })).toBeDisabled();
+  expect(
+    screen.getByRole("link", { name: "Explore candidates" }),
+  ).toHaveAttribute("href", "/candidates");
+  act(() => vi.advanceTimersByTime(2000));
+  expect(screen.getAllByText("Passed")).toHaveLength(1);
+  expect(screen.getByRole("link", { name: "Cast your vote" })).toHaveAttribute(
+    "href",
+    "/vote",
+  );
+  act(() => vi.advanceTimersByTime(2000));
+  expect(screen.getAllByText("Passed")).toHaveLength(2);
+  expect(screen.getByRole("button", { name: "Cast your vote" })).toBeDisabled();
+  expect(
+    screen.queryByRole("link", { name: "Cast your vote" }),
+  ).not.toBeInTheDocument();
 });
 
 test("switches candidate content on the candidates page", async () => {
