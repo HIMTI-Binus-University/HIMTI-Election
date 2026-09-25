@@ -6,6 +6,7 @@ import { ErrorState, LoadingState } from "@/components/async-state";
 import { CandidateImage } from "@/components/candidate-image";
 import { ElectionCountdown } from "@/components/countdown";
 import { PageLayout } from "@/components/layout/page-layout";
+import { NoElection } from "@/components/no-election";
 import { Button } from "@/components/ui/button";
 import { formatElectionDate } from "@/utils/date";
 
@@ -33,14 +34,7 @@ export default function HomePage() {
   if (!election.data)
     return (
       <PageLayout>
-        <section className="mx-auto max-w-2xl rounded-xl border border-border bg-white p-8">
-          <h1 className="text-2xl font-bold text-brand-navy">
-            No election is active
-          </h1>
-          <p className="mt-3 text-brand-slate">
-            The next HIMTI election will appear here when it is ready.
-          </p>
-        </section>
+        <NoElection message="The next HIMTI election will appear here when it is ready." />
       </PageLayout>
     );
 

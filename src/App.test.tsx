@@ -287,6 +287,45 @@ test("receipt status never reveals the candidate choice", () => {
   expect(screen.queryByText("Candidate One")).not.toBeInTheDocument();
 });
 
+test("closes an open confirmation when the voting deadline passes", async () => {
+  currentElection = { ...election, endsAt: "2026-01-01T00:00:01.000Z" };
+  renderAt("/vote");
+  fireEvent.click(
+    screen.getByRole("radio", { name: /candidate #01 candidate one/i }),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Review your vote" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: /vote is final/i }));
+  expect(
+    screen.getByRole("button", { name: /submit final vote/i }),
+  ).toBeEnabled();
+  await act(async () => vi.advanceTimersByTime(1000));
+  expect(
+    screen.getByRole("heading", { name: "Voting is not open" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: /submit final vote/i }),
+  ).not.toBeInTheDocument();
+  expect(castVote).not.toHaveBeenCalled();
+});
+
+test("reports rejected clipboard writes without claiming success", async () => {
+  voteStatus = {
+    hasVoted: true,
+    receiptCode: "EL-PRIVATE-RECEIPT",
+    votedAt: null,
+  };
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: { writeText: vi.fn().mockRejectedValue(new Error("denied")) },
+  });
+  renderAt("/status");
+  fireEvent.click(screen.getByRole("button", { name: "Copy receipt code" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Please copy it manually",
+  );
+  expect(screen.queryByText("Receipt copied")).not.toBeInTheDocument();
+});
+
 test("offers and skips the published results ceremony", async () => {
   election.status = "PUBLISHED";
   publishedResults = {
@@ -300,7 +339,7 @@ test("offers and skips the published results ceremony", async () => {
   const user = userEvent.setup();
   renderAt("/results");
   expect(
-    screen.getByRole("heading", { name: "The results are here." }),
+    screen.getByRole("button", { name: "Begin reveal" }),
   ).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "View full results" }));
   expect(
@@ -312,7 +351,7 @@ test("offers and skips the published results ceremony", async () => {
   expect(sessionStorage.getItem("results-reveal:election-1")).toBe("complete");
 });
 
-test("starts with a countdown before the ceremonial ballot race", async () => {
+test("skipping an active reveal keeps the final results visible", async () => {
   vi.useFakeTimers();
   election.status = "PUBLISHED";
   publishedResults = {
@@ -326,16 +365,17 @@ test("starts with a countdown before the ceremonial ballot race", async () => {
   renderAt("/results");
 
   fireEvent.click(screen.getByRole("button", { name: "Begin reveal" }));
-  expect(screen.getAllByText("3")).toHaveLength(2);
+  expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Skip" }));
   expect(
-    screen.queryByRole("heading", { name: /congratulations/i }),
-  ).not.toBeInTheDocument();
+    screen.getByRole("progressbar", { name: "Candidate One: 8 votes" }),
+  ).toHaveAttribute("aria-valuenow", "8");
 
-  for (let tick = 0; tick < 3; tick += 1) {
-    await act(() => vi.advanceTimersByTimeAsync(700));
-  }
+  await act(() => vi.advanceTimersByTimeAsync(30_000));
   expect(
-    screen.getByRole("heading", { name: "The ballot race is on" }),
-  ).toBeInTheDocument();
-  vi.useRealTimers();
+    screen.getByRole("progressbar", { name: "Candidate One: 8 votes" }),
+  ).toHaveAttribute("aria-valuenow", "8");
+  expect(
+    screen.queryByRole("button", { name: "Skip" }),
+  ).not.toBeInTheDocument();
 });

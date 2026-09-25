@@ -4,6 +4,7 @@ import {
   useEffect,
   useEffectEvent,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -14,20 +15,20 @@ import {
   Flag,
   Maximize2,
   Minimize2,
+  RotateCcw,
   Volume2,
   VolumeX,
 } from "lucide-react";
 import type { Results } from "@/api/elections";
 import { CandidateImage } from "@/components/candidate-image";
-import { gsap } from "@/lib/motion";
+import { Button } from "@/components/ui/button";
+import { gsap, useGSAP } from "@/lib/motion";
 
 type Stage =
   "intro" | "countdown" | "race" | "final" | "locked" | "hero" | "done";
 
-const stageDurations: Partial<Record<Stage, number>> = {
-  locked: 1_500,
-  hero: 2_800,
-};
+// Seconds from Begin reveal. The final stretch is part of the same count tween.
+const timing = { race: 1.8, final: 9.3, locked: 11.8, hero: 12.6, done: 15 };
 const particles = Array.from({ length: 12 }, (_, index) => index);
 
 export function ResultsReveal({
@@ -37,10 +38,10 @@ export function ResultsReveal({
 }: {
   electionId: string;
   data: Results;
-  children: ReactNode;
+  children: (replayButton: ReactNode) => ReactNode;
 }) {
   const storageKey = `results-reveal:${electionId}`;
-  const [reducedMotion] = useState(
+  const [reducedMotion, setReducedMotion] = useState(
     () =>
       typeof window.matchMedia === "function" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches,
@@ -53,18 +54,27 @@ export function ResultsReveal({
     }
   });
   const [count, setCount] = useState(3);
-  const [progress, setProgress] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
   const [sound, setSound] = useState(false);
   const stageRef = useRef<HTMLElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const beginRef = useRef<HTMLButtonElement>(null);
+  const skipRef = useRef<HTMLButtonElement>(null);
+  const focusPending = useRef(false);
+  const timelineRef = useRef<gsap.core.Timeline | null>(null);
   const audioRef = useRef<AudioContext | null>(null);
-  const drumRef = useRef<number | null>(null);
+  const audioNodes = useRef(new Map<OscillatorNode, GainNode>());
+  const audioRequest = useRef(0);
+  const soundEnabled = useRef(false);
   const laneRefs = useRef(new Map<string, HTMLElement>());
-  const lanePositions = useRef(new Map<string, DOMRect>());
-  const laneOrder = useRef("");
-  const ordered = [...data.results].sort(
-    (a, b) =>
-      b.votes - a.votes || a.candidate.ballotNumber - b.candidate.ballotNumber,
+  const ordered = useMemo(
+    () =>
+      [...data.results].sort(
+        (a, b) =>
+          b.votes - a.votes ||
+          a.candidate.ballotNumber - b.candidate.ballotNumber,
+      ),
+    [data.results],
   );
   const winner = data.winnerCandidateId
     ? ordered.find((item) => item.candidate.id === data.winnerCandidateId)
@@ -72,15 +82,33 @@ export function ResultsReveal({
   const maxVotes = Math.max(...ordered.map((item) => item.votes), 1);
   const leaders = ordered.filter((item) => item.votes === ordered[0]?.votes);
   const uniqueWinner = Boolean(winner) && !data.isTie;
+  const running = stage !== "intro" && stage !== "done";
+  const racing = stage === "race" || stage === "final" || stage === "locked";
 
-  const stopDrumroll = () => {
-    if (drumRef.current !== null) window.clearInterval(drumRef.current);
-    drumRef.current = null;
+  const disposeAudio = () => {
+    audioRequest.current += 1;
+    soundEnabled.current = false;
+    audioNodes.current.forEach((gain, oscillator) => {
+      oscillator.onended = null;
+      oscillator.stop();
+      oscillator.disconnect();
+      gain.disconnect();
+    });
+    audioNodes.current.clear();
+    const context = audioRef.current;
+    audioRef.current = null;
+    if (context && context.state !== "closed")
+      void context.close().catch(() => {});
   };
 
   const playHit = (frequency = 90, duration = 0.08, volume = 0.035) => {
     const context = audioRef.current;
-    if (!context || context.state !== "running") return;
+    if (
+      !soundEnabled.current ||
+      document.hidden ||
+      context?.state !== "running"
+    )
+      return;
     const oscillator = context.createOscillator();
     const gain = context.createGain();
     oscillator.type = "triangle";
@@ -91,196 +119,368 @@ export function ResultsReveal({
       context.currentTime + duration,
     );
     oscillator.connect(gain).connect(context.destination);
+    oscillator.onended = () => {
+      oscillator.disconnect();
+      gain.disconnect();
+      audioNodes.current.delete(oscillator);
+    };
     oscillator.start();
+    audioNodes.current.set(oscillator, gain);
     oscillator.stop(context.currentTime + duration);
   };
 
-  const startDrumroll = () => {
-    stopDrumroll();
-    playHit();
-    drumRef.current = window.setInterval(() => playHit(), 145);
-  };
-
-  const playWinnerSting = () => {
-    const context = audioRef.current;
-    if (!context || context.state !== "running") return;
-    [261.63, 329.63, 392].forEach((frequency, index) => {
-      window.setTimeout(() => playHit(frequency, 0.55, 0.045), index * 90);
-    });
-  };
-
   const finish = () => {
-    stopDrumroll();
+    timelineRef.current?.kill();
+    timelineRef.current = null;
+    disposeAudio();
+    setSound(false);
+    if (document.fullscreenElement === stageRef.current) {
+      void document.exitFullscreen().catch(() => {});
+    }
     try {
       sessionStorage.setItem(storageKey, "complete");
     } catch {
       // The reveal still works when browser storage is unavailable.
     }
+    focusPending.current = true;
     setStage("done");
   };
-  const finishFromTimer = useEffectEvent(finish);
-  const updateAudio = useEffectEvent(() => {
-    if (stage === "final" && sound) startDrumroll();
-    if (stage === "locked") stopDrumroll();
-    if (stage === "hero" && sound) playWinnerSting();
-  });
-  const stopAudio = useEffectEvent(stopDrumroll);
+  const stopAudio = useEffectEvent(disposeAudio);
 
-  useLayoutEffect(() => {
-    const order = Array.from(
-      stageRef.current?.querySelectorAll<HTMLElement>(
-        "[data-race-candidate]",
-      ) ?? [],
-    )
-      .map((lane) => lane.dataset.raceCandidate)
-      .join(":");
-    if (order === laneOrder.current) return;
-    laneOrder.current = order;
+  useGSAP(
+    () => {
+      if (!running || !stageRef.current) return;
+      const root = stageRef.current;
+      const intro = root.querySelector(".reveal-intro");
+      const countdown = root.querySelector(".reveal-countdown");
+      const numeral = root.querySelector(".reveal-count");
+      const race = root.querySelector(".reveal-race");
+      const hero = root.querySelector(".reveal-hero");
+      const rays = root.querySelector(".winner-rays");
+      const motion = { progress: 0 };
+      const timeline = gsap.timeline({ paused: true });
+      timelineRef.current = timeline;
+      const lanes = ordered.flatMap((item, index) => {
+        const node = laneRefs.current.get(item.candidate.id);
+        const bar = node?.querySelector<HTMLElement>(".race-progress");
+        const total = node?.querySelector<HTMLElement>("[data-race-total]");
+        const rank = node?.querySelector<HTMLElement>("[data-race-rank]");
+        if (!node || !bar || !total || !rank) return [];
+        gsap.set(node, { y: 0 });
+        gsap.set(bar, { scaleX: 0 });
+        return [
+          {
+            ...item,
+            node,
+            total,
+            rank,
+            setY: gsap.quickSetter(node, "y", "px"),
+            setScale: gsap.quickSetter(bar, "scaleX"),
+            offset:
+              ordered.length > 1
+                ? (index / (ordered.length - 1) - 0.5) * 0.2
+                : 0,
+            value: 0,
+            integer: -1,
+            position: -1,
+          },
+        ];
+      });
+      const ranking = [...lanes];
+      const before = new Array<number>(lanes.length);
+      const after = new Array<number>(lanes.length);
 
-    laneRefs.current.forEach((lane, id) => {
-      gsap.killTweensOf(lane);
-      gsap.set(lane, { y: 0 });
-      const current = lane.getBoundingClientRect();
-      const previous = lanePositions.current.get(id);
-      const distance = previous ? previous.top - current.top : 0;
-      if (distance) {
-        gsap.fromTo(
-          lane,
-          { y: distance },
-          { y: 0, duration: 0.55, ease: "power3.out", overwrite: true },
+      const updateRace = () => {
+        const wave = Math.sin(Math.PI * motion.progress);
+        for (const lane of lanes) {
+          // Deterministic ceremonial pacing, bounded by each verified total.
+          const fraction = Math.max(
+            0,
+            Math.min(1, motion.progress + lane.offset * wave),
+          );
+          lane.value =
+            motion.progress === 1 ? lane.votes : lane.votes * fraction;
+        }
+        // Start in the first moving order so the entrance itself does not shuffle.
+        ranking.sort(
+          (a, b) =>
+            (motion.progress === 0
+              ? b.votes * (1 + b.offset * Math.PI) -
+                a.votes * (1 + a.offset * Math.PI)
+              : b.value - a.value) ||
+            a.candidate.ballotNumber - b.candidate.ballotNumber,
+        );
+        const swapped = ranking.some((lane, index) => lane.position !== index);
+        if (swapped) {
+          // Capture the CURRENT transformed positions before interrupting a swap.
+          lanes.forEach((lane, index) => {
+            before[index] = lane.node.getBoundingClientRect().top;
+          });
+        }
+        for (const lane of lanes) {
+          lane.setScale(lane.value / maxVotes);
+          const integer = Math.floor(lane.value);
+          if (integer !== lane.integer) {
+            lane.total.textContent = integer.toLocaleString();
+            lane.integer = integer;
+          }
+        }
+        if (!swapped) return;
+        const initial = ranking[0]?.position === -1;
+        ranking.forEach((lane, index) => {
+          timeline.killTweensOf(lane.node);
+          lane.setY(0);
+          lane.node.style.order = String(index);
+          lane.node.style.zIndex = String(ranking.length - index);
+          lane.rank.textContent = String(index + 1);
+          lane.position = index;
+        });
+        // All layout writes above, then all reads, then transform-only writes.
+        lanes.forEach((lane, index) => {
+          after[index] = lane.node.getBoundingClientRect().top;
+        });
+        if (initial) return;
+        lanes.forEach((lane, index) => {
+          const distance = before[index] - after[index];
+          if (!distance) return;
+          lane.setY(distance);
+          timeline.to(
+            lane.node,
+            { y: 0, duration: 0.42, ease: "power2.out" },
+            timeline.time(),
+          );
+        });
+      };
+
+      updateRace();
+      gsap.set(intro, { autoAlpha: 1 });
+      gsap.set([countdown, race, hero], { autoAlpha: 0 });
+      gsap.set(numeral, { autoAlpha: 0 });
+      timeline.to(intro, { autoAlpha: 0, y: -6, duration: 0.16 }, 0);
+      timeline.set(countdown, { autoAlpha: 1 }, 0);
+      for (let index = 0; index < 3; index += 1) {
+        const at = index * 0.6;
+        timeline.call(() => setCount(3 - index), [], at);
+        timeline.fromTo(
+          numeral,
+          { autoAlpha: 0, scale: 0.96, y: 6 },
+          {
+            autoAlpha: 1,
+            scale: 1,
+            y: 0,
+            duration: 0.16,
+            ease: "power2.out",
+            immediateRender: false,
+          },
+          at + 0.06,
+        );
+        timeline.to(
+          numeral,
+          { autoAlpha: 0, y: -6, duration: 0.14 },
+          at + 0.46,
         );
       }
-      lanePositions.current.set(id, current);
-    });
-  });
-
-  useEffect(() => {
-    if (stage === "countdown") {
-      const timer = window.setTimeout(() => {
-        if (count > 1) setCount((value) => value - 1);
-        else {
-          setProgress(0);
-          setStage("race");
-        }
-      }, 700);
-      return () => window.clearTimeout(timer);
-    }
-
-    if (stage === "race" || stage === "final") {
-      const motion = { progress: stage === "race" ? 0 : 0.72 };
-      const target = stage === "race" ? 0.72 : 1;
-      const tween = gsap.to(motion, {
-        progress: target,
-        duration: stage === "race" ? 11 : 5,
-        ease: stage === "race" ? "power1.inOut" : "power3.out",
-        onUpdate: () => setProgress(motion.progress),
-        onComplete: () => {
-          setProgress(target);
-          setStage(stage === "race" ? "final" : "locked");
+      timeline.set(countdown, { autoAlpha: 0 }, timing.race);
+      timeline.call(() => setStage("race"), [], timing.race);
+      timeline.fromTo(
+        race,
+        { autoAlpha: 0, y: 8 },
+        { autoAlpha: 1, y: 0, duration: 0.24, ease: "power2.out" },
+        timing.race,
+      );
+      timeline.to(
+        motion,
+        {
+          progress: 1,
+          duration: timing.locked - timing.race,
+          ease: "sine.inOut",
+          onUpdate: updateRace,
         },
-      });
-      return () => tween.kill();
+        timing.race,
+      );
+      timeline.call(() => setStage("final"), [], timing.final);
+      for (let at = timing.final; at < timing.locked - 0.08; at += 0.145) {
+        timeline.call(() => playHit(), [], at);
+      }
+      timeline.call(() => setStage("locked"), [], timing.locked);
+      timeline.to(
+        race,
+        { autoAlpha: 0, y: -6, duration: 0.18 },
+        timing.hero - 0.18,
+      );
+      timeline.call(() => setStage("hero"), [], timing.hero);
+      timeline.fromTo(
+        hero,
+        { autoAlpha: 0, y: 8 },
+        { autoAlpha: 1, y: 0, duration: 0.24, ease: "power2.out" },
+        timing.hero,
+      );
+      if (rays) {
+        timeline.fromTo(
+          rays,
+          { autoAlpha: 0, scale: 0.96 },
+          { autoAlpha: 1, scale: 1, duration: 0.55, ease: "power2.out" },
+          timing.hero,
+        );
+      }
+      if (uniqueWinner) {
+        [261.63, 329.63, 392].forEach((frequency, index) => {
+          timeline.call(
+            () => playHit(frequency, 0.55, 0.045),
+            [],
+            timing.hero + index * 0.09,
+          );
+        });
+      }
+      timeline.to(hero, { autoAlpha: 0, duration: 0.16 }, timing.done - 0.16);
+      timeline.call(finish, [], timing.done);
+      if (!document.hidden) timeline.play(0);
+      return () => {
+        timeline.kill();
+        if (timelineRef.current === timeline) timelineRef.current = null;
+        lanes.forEach(({ node }) => {
+          node.style.removeProperty("order");
+        });
+        disposeAudio();
+      };
+    },
+    {
+      scope: stageRef,
+      dependencies: [running, ordered, maxVotes, uniqueWinner, storageKey],
+      revertOnUpdate: true,
+    },
+  );
+
+  useLayoutEffect(() => {
+    if (stage === "countdown") skipRef.current?.focus({ preventScroll: true });
+    if (!focusPending.current) return;
+    if (stage === "done") {
+      const heading = resultsRef.current?.querySelector<HTMLElement>(
+        "[data-results-heading]",
+      );
+      (heading ?? resultsRef.current)?.focus({ preventScroll: true });
+      focusPending.current = false;
+    } else if (stage === "intro") {
+      beginRef.current?.focus({ preventScroll: true });
+      focusPending.current = false;
     }
+  }, [stage]);
 
-    const duration = stageDurations[stage];
-    if (!duration) return;
-    const timer = window.setTimeout(() => {
-      if (stage === "locked") setStage("hero");
-      if (stage === "hero") finishFromTimer();
-    }, duration);
-    return () => window.clearTimeout(timer);
-  }, [count, stage]);
-
-  useEffect(() => {
-    updateAudio();
-    return stopAudio;
-  }, [sound, stage]);
-
+  const handleVisibility = useEffectEvent(() => {
+    if (document.hidden) {
+      timelineRef.current?.pause();
+      disposeAudio();
+      setSound(false);
+    } else {
+      timelineRef.current?.resume();
+    }
+  });
+  const handleMotionPreference = useEffectEvent(
+    (event: MediaQueryListEvent) => {
+      setReducedMotion(event.matches);
+      if (event.matches && running) finish();
+    },
+  );
   useEffect(() => {
     const updateFullscreen = () =>
       setFullscreen(document.fullscreenElement === stageRef.current);
-    const stopHiddenAudio = () => {
-      if (document.hidden) stopDrumroll();
-    };
+    const media =
+      typeof window.matchMedia === "function"
+        ? window.matchMedia("(prefers-reduced-motion: reduce)")
+        : null;
+    const updateMotion = (event: MediaQueryListEvent) =>
+      handleMotionPreference(event);
+    const updateVisibility = () => handleVisibility();
     document.addEventListener("fullscreenchange", updateFullscreen);
-    document.addEventListener("visibilitychange", stopHiddenAudio);
+    document.addEventListener("visibilitychange", updateVisibility);
+    media?.addEventListener("change", updateMotion);
     return () => {
       document.removeEventListener("fullscreenchange", updateFullscreen);
-      document.removeEventListener("visibilitychange", stopHiddenAudio);
+      document.removeEventListener("visibilitychange", updateVisibility);
+      media?.removeEventListener("change", updateMotion);
       stopAudio();
-      void audioRef.current?.close();
     };
   }, []);
+
   const begin = () => {
     if (reducedMotion) return finish();
     setCount(3);
-    setProgress(0);
     setStage("countdown");
   };
   const replay = () => {
-    stopDrumroll();
+    timelineRef.current?.kill();
+    disposeAudio();
+    setSound(false);
     try {
       sessionStorage.removeItem(storageKey);
     } catch {
       // Replay does not depend on browser storage.
     }
+    focusPending.current = true;
     setCount(3);
-    setProgress(0);
     setStage("intro");
   };
   const toggleSound = async () => {
-    if (!sound) {
-      audioRef.current ??= new AudioContext();
-      await audioRef.current.resume();
-    } else {
-      stopDrumroll();
+    if (soundEnabled.current) {
+      disposeAudio();
+      setSound(false);
+      return;
     }
-    setSound((value) => !value);
+    const request = ++audioRequest.current;
+    soundEnabled.current = true;
+    setSound(true);
+    try {
+      const context = new AudioContext();
+      audioRef.current = context;
+      await context.resume();
+      if (request === audioRequest.current && document.hidden) {
+        disposeAudio();
+        setSound(false);
+      }
+    } catch {
+      if (request === audioRequest.current) {
+        disposeAudio();
+        setSound(false);
+      }
+    }
   };
   const toggleFullscreen = async () => {
     try {
-      if (document.fullscreenElement) await document.exitFullscreen();
+      if (document.fullscreenElement === stageRef.current)
+        await document.exitFullscreen();
       else await stageRef.current?.requestFullscreen();
     } catch {
       setFullscreen(false);
     }
   };
 
-  if (stage === "done")
+  if (stage === "done") {
     return (
-      <>
-        {children}
-        <div className="mx-auto mt-6 max-w-5xl text-center">
-          <button
-            className="font-bold text-brand-blue underline-offset-4 hover:underline"
+      <div
+        ref={resultsRef}
+        tabIndex={-1}
+        className="outline-none"
+        role="region"
+        aria-label="Election results"
+      >
+        {children(
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full sm:w-auto"
             onClick={replay}
           >
+            <RotateCcw className="size-4" aria-hidden="true" />
             Replay reveal
-          </button>
-        </div>
-      </>
+          </Button>,
+        )}
+      </div>
     );
+  }
 
-  const animated = ordered.map((item, index) => {
-    const offset =
-      ordered.length > 1 ? (index / (ordered.length - 1) - 0.5) * 0.2 : 0;
-    const candidateProgress = Math.max(
-      0,
-      Math.min(1, progress + offset * Math.sin(Math.PI * progress)),
-    );
-    return {
-      ...item,
-      displayedVotes: Math.floor(item.votes * candidateProgress),
-    };
-  });
-  const raceOrder = [...animated].sort(
-    (a, b) =>
-      b.displayedVotes - a.displayedVotes ||
-      a.candidate.ballotNumber - b.candidate.ballotNumber,
-  );
   const status =
     stage === "countdown"
-      ? `${count}`
+      ? `Reveal begins in ${count}`
       : stage === "race"
         ? "The ceremonial ballot race is underway"
         : stage === "final"
@@ -298,17 +498,19 @@ export function ResultsReveal({
   return (
     <section
       ref={stageRef}
-      className="reveal-stage page-reveal relative mx-auto min-h-[40rem] max-w-5xl overflow-y-auto rounded-[2rem] bg-brand-navy px-5 py-8 text-white shadow-brand sm:px-10 sm:py-12"
+      data-stage={stage}
+      aria-label="Election result ceremony"
+      className="reveal-stage relative mx-auto max-w-5xl rounded-2xl bg-brand-navy px-5 py-5 text-white sm:px-10 sm:py-8"
     >
-      <div className="reveal-grid absolute inset-0" aria-hidden="true" />
       <p className="sr-only" aria-live="polite" aria-atomic="true">
         {status}
       </p>
-      <div className="reveal-controls absolute left-5 top-5 z-20 flex gap-2">
+      <div className="reveal-controls">
         <button
           type="button"
           onClick={() => void toggleFullscreen()}
-          className="inline-flex items-center gap-2 rounded-full border border-white/30 px-4 py-2 text-sm font-bold hover:bg-white/10"
+          aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+          className="reveal-control"
         >
           {fullscreen ? (
             <Minimize2 className="size-4" aria-hidden="true" />
@@ -323,7 +525,8 @@ export function ResultsReveal({
           type="button"
           onClick={() => void toggleSound()}
           aria-pressed={sound}
-          className="inline-flex items-center gap-2 rounded-full border border-white/30 px-4 py-2 text-sm font-bold hover:bg-white/10"
+          aria-label={sound ? "Mute reveal sound" : "Enable reveal sound"}
+          className="reveal-control"
         >
           {sound ? (
             <Volume2 className="size-4" aria-hidden="true" />
@@ -332,142 +535,166 @@ export function ResultsReveal({
           )}
           <span className="hidden sm:inline">Sound {sound ? "on" : "off"}</span>
         </button>
-      </div>
-      {stage !== "intro" && (
         <button
+          ref={skipRef}
+          type="button"
           onClick={finish}
-          className="absolute right-5 top-5 z-20 inline-flex items-center gap-2 rounded-full border border-white/30 px-4 py-2 text-sm font-bold hover:bg-white/10"
+          disabled={stage === "intro"}
+          aria-hidden={stage === "intro"}
+          className="reveal-control reveal-skip"
         >
-          <FastForward className="size-4" aria-hidden="true" />
-          Skip
+          <FastForward className="size-4" aria-hidden="true" /> Skip
         </button>
-      )}
+      </div>
 
-      {stage === "intro" && (
-        <div className="relative z-10 mx-auto flex min-h-[32rem] max-w-2xl flex-col items-center justify-center text-center">
-          <CheckCircle2 className="size-14 text-white" aria-hidden="true" />
-          <p className="mt-6 text-xs font-bold uppercase tracking-[0.22em] text-white/80">
+      <div className="reveal-body">
+        <div
+          className="reveal-scene reveal-intro mx-auto flex max-w-2xl flex-col items-center justify-center text-center"
+          aria-hidden={stage !== "intro"}
+          inert={stage !== "intro"}
+        >
+          <CheckCircle2 className="size-12 text-white" aria-hidden="true" />
+          <p className="mt-6 text-sm font-semibold text-white/80">
             Final tally verified
           </p>
-          <h1 className="mt-3 text-4xl font-bold tracking-tight sm:text-6xl">
+          <h1 className="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">
             The results are here.
           </h1>
-          <p className="mt-5 max-w-xl leading-7 text-white/70">
-            Watch the verified result unfold in a ceremonial ballot race.
+          <p className="mt-5 max-w-xl leading-7 text-white/80">
+            Watch the verified result unfold in a 15-second ceremonial ballot
+            race.
           </p>
-          <p className="mt-3 max-w-xl text-xs leading-5 text-white/50">
-            This visualization does not represent the chronological order in
-            which ballots were cast.
-          </p>
-          <div className="mt-9 flex flex-wrap justify-center gap-3">
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
             <button
+              ref={beginRef}
+              type="button"
               onClick={begin}
-              className="rounded-full bg-brand-blue px-7 py-3 font-bold text-white shadow-lg hover:bg-[#7599CA]"
+              className="reveal-action rounded-full bg-brand-blue px-7 py-3 font-bold text-white hover:bg-[#0059be]"
             >
               Begin reveal
             </button>
             <button
+              type="button"
               onClick={finish}
-              className="rounded-full border border-white/40 px-7 py-3 font-bold hover:bg-white/10"
+              className="reveal-action rounded-full border border-white/40 px-7 py-3 font-bold hover:bg-white/10"
             >
               View full results
             </button>
           </div>
+          {reducedMotion && (
+            <p className="mt-4 text-sm text-white/80">
+              Reduced motion is on. Begin reveal opens the full results
+              directly.
+            </p>
+          )}
         </div>
-      )}
 
-      {stage === "countdown" && (
         <div
-          className="reveal-count relative z-10 grid min-h-[32rem] place-items-center text-[10rem] font-bold text-white"
-          key={count}
+          className="reveal-scene reveal-countdown grid place-items-center"
+          aria-hidden={stage !== "countdown"}
+          inert={stage !== "countdown"}
         >
-          {count}
+          <span
+            className="reveal-count text-[8rem] font-bold tabular-nums sm:text-[10rem]"
+            aria-hidden="true"
+          >
+            {count}
+          </span>
         </div>
-      )}
 
-      {(stage === "race" || stage === "final" || stage === "locked") && (
-        <div className="relative z-10 mx-auto flex min-h-[34rem] max-w-4xl flex-col justify-center pt-16">
+        <div
+          className="reveal-scene reveal-race mx-auto flex max-w-4xl flex-col justify-center"
+          aria-hidden={!racing}
+          inert={!racing}
+        >
           <div className="text-center">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/80">
+            <p className="text-sm font-medium text-white/80">
               Official result ceremony
             </p>
-            <h2 className="mt-2 text-3xl font-bold sm:text-4xl">
-              {stage === "race"
-                ? "The ballot race is on"
+            <h2 className="reveal-race-title mt-2 text-2xl font-bold sm:text-4xl">
+              {stage === "locked"
+                ? "Verified totals locked"
                 : stage === "final"
                   ? "Final stretch"
-                  : "Verified totals locked"}
+                  : "The ballot race is on"}
             </h2>
           </div>
-          <div className="relative mt-10 space-y-3">
+          <div className="relative mt-8">
             <div
-              className="absolute -top-6 right-0 flex items-center gap-1.5 text-[0.6rem] font-bold uppercase tracking-[0.18em] text-white/75"
+              className="absolute -top-6 right-0 flex items-center gap-1.5 text-xs font-semibold text-white/80"
               aria-hidden="true"
             >
               <Flag className="size-3" /> Finish
             </div>
-            {raceOrder.map(({ candidate, votes, displayedVotes }, index) => (
-              <article
-                key={candidate.id}
-                ref={(node) => {
-                  if (node) laneRefs.current.set(candidate.id, node);
-                  else laneRefs.current.delete(candidate.id);
-                }}
-                data-race-candidate={candidate.id}
-                className={`race-lane relative overflow-hidden rounded-2xl border bg-white/[0.07] p-3 sm:p-4 ${stage === "locked" ? "is-finished border-white/60" : "border-white/15"}`}
-              >
-                <div className="flex items-center gap-3 sm:gap-4">
-                  <span className="w-7 text-center text-lg font-bold text-white">
-                    {index + 1}
-                  </span>
-                  <div className="aspect-[3/4] w-12 shrink-0 overflow-hidden rounded-lg border border-white/20 sm:w-14">
-                    <CandidateImage
-                      src={candidate.photoUrl}
-                      name={candidate.name}
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-end justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-[0.65rem] font-bold uppercase tracking-wider text-white/70">
-                          Ballot {candidate.ballotNumber}
+            <div className="race-lanes">
+              {ordered.map(({ candidate, votes }) => (
+                <article
+                  key={candidate.id}
+                  ref={(node) => {
+                    if (node) laneRefs.current.set(candidate.id, node);
+                    else laneRefs.current.delete(candidate.id);
+                  }}
+                  data-race-candidate={candidate.id}
+                  className={`race-lane relative rounded-xl border p-3 sm:p-4 ${stage === "locked" ? "is-finished border-white/60" : "border-white/15"}`}
+                >
+                  <div className="flex items-center gap-2 sm:gap-4">
+                    <span className="w-6 shrink-0 text-center text-lg font-bold">
+                      <span className="sr-only">Rank </span>
+                      <span data-race-rank />
+                    </span>
+                    <div className="aspect-[3/4] w-10 shrink-0 overflow-hidden rounded-lg border border-white/20 sm:w-14">
+                      <CandidateImage
+                        src={candidate.photoUrl}
+                        name={candidate.name}
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="race-candidate-details">
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-white/80">
+                            Candidate #
+                            {String(candidate.ballotNumber).padStart(2, "0")}
+                          </p>
+                          <h3 className="reveal-name mt-1 text-sm font-bold sm:text-lg">
+                            {candidate.name}
+                          </h3>
+                        </div>
+                        <p
+                          className="race-total font-bold tabular-nums"
+                          aria-hidden="true"
+                          style={{
+                            minWidth: `${maxVotes.toLocaleString().length + 1}ch`,
+                          }}
+                        >
+                          <span data-race-total>0</span>
+                          <span className="ml-1 text-xs font-medium text-white/75">
+                            votes
+                          </span>
                         </p>
-                        <h3 className="truncate font-bold sm:text-lg">
-                          {candidate.name}
-                        </h3>
                       </div>
-                      <p className="shrink-0 text-xl font-bold tabular-nums sm:text-2xl">
-                        {displayedVotes}
-                        <span className="ml-1 text-xs font-medium text-white/55">
-                          votes
-                        </span>
-                      </p>
-                    </div>
-                    <div className="race-track relative mt-3 h-3 overflow-hidden rounded-full bg-white/10">
                       <div
-                        className="race-progress h-full rounded-full bg-brand-blue"
-                        style={
-                          {
-                            width: `${(displayedVotes / maxVotes) * 100}%`,
-                          } as CSSProperties
-                        }
-                      />
-                      <span
-                        className="race-finish absolute inset-y-0 right-0"
+                        className="race-track relative mt-3 h-2.5 overflow-hidden rounded-full bg-white/10"
                         aria-hidden="true"
-                      />
+                      >
+                        <div className="race-progress h-full rounded-full bg-brand-sky" />
+                        <span className="race-finish absolute inset-y-0 right-0" />
+                      </div>
                     </div>
                   </div>
-                </div>
-                <span className="sr-only">Final total: {votes} votes</span>
-              </article>
-            ))}
+                  {stage === "locked" && (
+                    <span className="sr-only">Final total: {votes} votes</span>
+                  )}
+                </article>
+              ))}
+            </div>
           </div>
         </div>
-      )}
 
-      {stage === "hero" && (
-        <div className="relative z-10 grid min-h-[34rem] place-items-center py-16 text-center">
+        <div
+          className="reveal-scene reveal-hero relative grid place-items-center text-center"
+          aria-hidden={stage !== "hero"}
+          inert={stage !== "hero"}
+        >
           {uniqueWinner && (
             <div className="winner-rays" aria-hidden="true">
               {particles.map((particle) => (
@@ -478,50 +705,56 @@ export function ResultsReveal({
               ))}
             </div>
           )}
-          <div className="winner-content relative z-10">
+          <div className="winner-content relative z-10 w-full max-w-3xl">
             {uniqueWinner && winner && (
               <>
-                <div className="mx-auto aspect-[3/4] w-44 overflow-hidden rounded-[1.75rem] border-4 border-white shadow-[0_0_45px_rgba(255,255,255,0.25)] sm:w-56">
+                <div className="mx-auto aspect-[3/4] w-36 overflow-hidden rounded-xl border-2 border-white sm:w-44">
                   <CandidateImage
                     src={winner.candidate.photoUrl}
                     name={winner.candidate.name}
                   />
                 </div>
                 <Award
-                  className="mx-auto mt-5 size-12 text-white"
+                  className="mx-auto mt-4 size-9 text-white"
                   aria-hidden="true"
                 />
               </>
             )}
-            <p className="mt-5 text-xs font-bold uppercase tracking-[0.22em] text-white/80">
-              Official result
+            <p className="mt-4 text-sm font-medium text-white/80">
+              {uniqueWinner
+                ? "Congratulations to our elected candidate"
+                : "Official result"}
             </p>
-            <h2 className="mt-3 text-4xl font-bold sm:text-6xl">
+            <h2 className="reveal-name mt-3 text-3xl font-bold tracking-tight sm:text-5xl">
               {data.isTie
                 ? "A tied result"
                 : winner
-                  ? `Congratulations, ${winner.candidate.name}!`
+                  ? winner.candidate.name
                   : "No winner determined"}
             </h2>
-            {winner && !data.isTie && (
-              <p className="mt-4 text-xl font-bold text-white">
-                {winner.votes} votes
+            {uniqueWinner && winner && (
+              <p className="mt-4 text-xl font-bold">
+                {winner.votes.toLocaleString()} votes
               </p>
             )}
             {data.isTie && (
-              <p className="mt-5 text-xl text-white/75">
+              <p className="reveal-name mt-5 text-lg leading-relaxed text-white/80">
                 {leaders.map((item) => item.candidate.name).join(" & ")} share
                 the highest tally.
               </p>
             )}
             {!winner && !data.isTie && (
-              <p className="mt-5 text-xl text-white/75">
+              <p className="mt-5 text-lg text-white/80">
                 No votes were recorded for a winning candidate.
               </p>
             )}
           </div>
         </div>
-      )}
+      </div>
+      <p className="relative mt-4 text-center text-xs leading-5 text-white/75">
+        This ceremonial visualization does not represent the chronological order
+        in which ballots were cast.
+      </p>
     </section>
   );
 }

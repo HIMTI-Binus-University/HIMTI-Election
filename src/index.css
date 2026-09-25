@@ -79,51 +79,126 @@ dialog::backdrop {
       transform: translateY(12px);
     }
   }
-  .reveal-count {
-    animation: reveal-count 0.7s ease-out both;
-  }
-  .race-progress {
-    will-change: width;
-  }
-  .winner-rays {
-    animation: winner-in 0.8s ease-out both;
-  }
-  @keyframes reveal-count {
-    from {
-      opacity: 0;
-      transform: scale(0.7);
-    }
-    45% {
-      opacity: 1;
-    }
-    to {
-      opacity: 0.2;
-      transform: scale(1.15);
-    }
-  }
-  @keyframes winner-in {
-    from {
-      opacity: 0;
-      transform: scale(0.8);
-    }
-  }
 }
-.reveal-grid {
-  opacity: 0.18;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
-  background-size: 42px 42px;
-  mask-image: radial-gradient(circle, black, transparent 75%);
+.reveal-stage {
+  overflow: hidden;
+}
+.reveal-controls {
+  position: relative;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.reveal-control {
+  display: inline-flex;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.reveal-control:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.reveal-control:focus-visible,
+.reveal-action:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 4px;
+}
+.reveal-control:active,
+.reveal-action:active {
+  transform: scale(0.98);
+}
+.reveal-skip {
+  margin-left: auto;
+}
+.reveal-skip:disabled {
+  visibility: hidden;
+}
+.reveal-body {
+  display: grid;
+  min-height: 34rem;
+}
+.reveal-scene {
+  grid-area: 1 / 1;
+  width: 100%;
+  min-width: 0;
+  padding-block: 2rem;
+  opacity: 0;
+  visibility: hidden;
+}
+.reveal-stage[data-stage="intro"] .reveal-intro {
+  opacity: 1;
+  visibility: visible;
+}
+.reveal-race-title {
+  display: grid;
+  min-height: 2.5em;
+  place-content: center;
+  text-wrap: balance;
+}
+.reveal-name {
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+.race-lane {
+  background: color-mix(in srgb, hsl(var(--brand-navy)) 93%, white);
+}
+.race-lanes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.race-candidate-details {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+.race-total {
+  flex-shrink: 0;
+  font-size: 1.125rem;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.race-progress {
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+.reveal-stage[data-stage="race"] .race-progress,
+.reveal-stage[data-stage="final"] .race-progress {
+  will-change: transform;
 }
 .reveal-stage:fullscreen {
+  display: flex;
+  flex-direction: column;
   width: 100vw;
   max-width: none;
-  min-height: 100dvh;
+  height: 100dvh;
+  overflow-y: auto;
   border-radius: 0;
 }
-.reveal-stage:fullscreen > div:not(.reveal-grid):not(.reveal-controls) {
-  min-height: calc(100dvh - 6rem);
+.reveal-stage:fullscreen .reveal-body {
+  flex: 1 0 auto;
+}
+@media (min-width: 640px) {
+  .race-candidate-details {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .race-total {
+    font-size: 1.5rem;
+  }
 }
 .race-track {
   background-image: linear-gradient(

@@ -4,6 +4,7 @@ import { useCurrentElection } from "@/api/elections";
 import { ErrorState, LoadingState } from "@/components/async-state";
 import { CandidateImage } from "@/components/candidate-image";
 import { PageLayout } from "@/components/layout/page-layout";
+import { NoElection } from "@/components/no-election";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { isVotingTime } from "@/utils/date";
@@ -44,19 +45,7 @@ export default function CandidatesPage() {
   if (!election.data)
     return (
       <PageLayout>
-        <section className="mx-auto max-w-xl rounded-xl border border-border bg-white p-8 text-center sm:p-11">
-          <Vote
-            className="mx-auto size-12 text-brand-blue"
-            aria-hidden="true"
-          />
-          <h1 className="mt-5 text-3xl font-bold text-brand-navy">
-            No election is active
-          </h1>
-          <p className="mt-3 text-sm leading-6 text-brand-slate">
-            Candidate profiles will appear here when the next HIMTI Election is
-            ready.
-          </p>
-        </section>
+        <NoElection message="Candidate profiles will appear here when the next HIMTI Election is ready." />
       </PageLayout>
     );
   const candidates = [...election.data.candidates].sort(

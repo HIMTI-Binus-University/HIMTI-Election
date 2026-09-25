@@ -12,9 +12,11 @@ import {
 import { CandidateImage } from "@/components/candidate-image";
 import { ErrorState, LoadingState } from "@/components/async-state";
 import { PageLayout } from "@/components/layout/page-layout";
+import { NoElection } from "@/components/no-election";
 import { Button } from "@/components/ui/button";
 import { VoterGate } from "@/components/voter-gate";
 import { cn } from "@/lib/utils";
+import { isVotingTime } from "@/utils/date";
 
 type VoteLocationState = { candidateId?: string } | null;
 
@@ -26,10 +28,23 @@ function Ballot() {
   const [selected, setSelected] = useState(initial);
   const [acknowledged, setAcknowledged] = useState(false);
   const [error, setError] = useState("");
+  const [now, setNow] = useState(Date.now);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const eligibility = useEligibility(election.data?.id, Boolean(election.data));
   const voteStatus = useVoteStatus(election.data?.id, Boolean(election.data));
   const castVote = useCastVote(election.data?.id ?? "");
+  const canVoteNow =
+    election.data?.status === "OPEN" &&
+    isVotingTime(election.data.startsAt, election.data.endsAt, now);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!canVoteNow) dialogRef.current?.close();
+  }, [canVoteNow]);
 
   useEffect(() => {
     if (
@@ -45,18 +60,14 @@ function Ballot() {
     return <ErrorState retry={() => void election.refetch()} />;
   if (!election.data)
     return (
-      <section className="page-reveal mx-auto max-w-xl rounded-3xl border border-white bg-white p-8 text-center shadow-brand sm:p-11">
-        <ShieldCheck
-          className="mx-auto size-12 text-brand-blue"
-          aria-hidden="true"
-        />
-        <h1 className="mt-5 text-3xl font-bold text-brand-navy">
-          No election is active
-        </h1>
-        <p className="mt-3 text-sm leading-6 text-brand-slate">
-          The ballot will become available when the next HIMTI Election opens.
-        </p>
-      </section>
+      <NoElection message="The ballot will become available when the next HIMTI Election opens." />
+    );
+  if (!canVoteNow)
+    return (
+      <ErrorState
+        title="Voting is not open"
+        message="Voting is not open at this time."
+      />
     );
   if (eligibility.isError || voteStatus.isError)
     return (
@@ -92,7 +103,14 @@ function Ballot() {
     (item) => item.id === selected,
   );
   const submit = async () => {
-    if (!candidate || !acknowledged) return;
+    if (
+      !canVoteNow ||
+      !election.data ||
+      !isVotingTime(election.data.startsAt, election.data.endsAt) ||
+      !candidate ||
+      !acknowledged
+    )
+      return;
     setError("");
     try {
       await castVote.mutateAsync(candidate.id);
@@ -186,7 +204,7 @@ function Ballot() {
           </div>
           <Button
             className="shrink-0 px-7 py-4 text-base"
-            disabled={!selected}
+            disabled={!canVoteNow || !selected}
             onClick={() => {
               setAcknowledged(false);
               setError("");
@@ -268,7 +286,7 @@ function Ballot() {
                 Go back
               </Button>
               <Button
-                disabled={!acknowledged || castVote.isPending}
+                disabled={!canVoteNow || !acknowledged || castVote.isPending}
                 onClick={() => void submit()}
               >
                 <ShieldCheck className="size-4" />

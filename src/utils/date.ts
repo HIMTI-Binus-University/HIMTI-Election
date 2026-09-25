@@ -22,9 +22,8 @@ export const formatElectionDate = (value: string) =>
 export const formatElectionDay = (value: string) =>
   dayFormatter.format(new Date(value));
 
-export const isVotingTime = (startsAt: string, endsAt: string) => {
-  const now = Date.now();
-  return (
-    now >= new Date(startsAt).getTime() && now < new Date(endsAt).getTime()
-  );
-};
+export const isVotingTime = (
+  startsAt: string,
+  endsAt: string,
+  now = Date.now(),
+) => now >= new Date(startsAt).getTime() && now < new Date(endsAt).getTime();
