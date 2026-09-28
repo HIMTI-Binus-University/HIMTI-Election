@@ -22,7 +22,7 @@ const candidate = {
   slogan: "One family, one goal",
   vision: "A clear vision for HIMTI.",
   mission: "A practical mission for HIMTI.",
-  videoUrl: "https://www.youtube.com/watch?v=sample",
+  videoUrl: "https://www.youtube.com/watch?v=sample" as string | null,
   workPrograms: ["Program One"],
   experiences: ["Organization experience"],
   isActive: true,
@@ -141,28 +141,95 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-test("renders the live election and candidate", () => {
+test("home orders milestones and keeps voting actions synchronized with the window", () => {
+  currentElection = {
+    ...election,
+    startsAt: "2026-01-01T00:00:02.000Z",
+    endsAt: "2026-01-01T00:00:04.000Z",
+    debateAt: "2026-01-01T00:00:06.000Z",
+    candidates: [
+      candidate,
+      {
+        ...candidate,
+        id: "candidate-2",
+        ballotNumber: 2,
+        name: "Candidate Two",
+      },
+      {
+        ...candidate,
+        id: "candidate-3",
+        ballotNumber: 3,
+        name: "Candidate Three",
+      },
+    ],
+  };
   renderAt("/");
+  const timeline = screen.getByRole("list", { name: "Election timeline" });
   expect(
-    screen.getByRole("heading", { name: "HIMTI Election" }),
-  ).toBeInTheDocument();
+    Array.from(timeline.querySelectorAll("h3"), (item) => item.textContent),
+  ).toEqual(["Voting opens", "Voting closes", "Candidate debate"]);
+  expect(screen.queryByText("Passed")).not.toBeInTheDocument();
+  expect(screen.getByText("Candidate #03")).toBeInTheDocument();
   expect(
-    screen.getByRole("heading", { name: "Candidate One" }),
-  ).toBeInTheDocument();
-  expect(screen.getByText("Voting ends in")).toBeInTheDocument();
-  expect(screen.getByText("Election Schedule")).toBeInTheDocument();
+    screen.getByRole("link", { name: "View Candidate Three's profile" }),
+  ).toHaveAttribute("href", "/candidates?candidate=candidate-3");
+  expect(screen.getByRole("button", { name: "Cast your vote" })).toBeDisabled();
+  expect(
+    screen.getByRole("link", { name: "Explore candidates" }),
+  ).toHaveAttribute("href", "/candidates");
+  act(() => vi.advanceTimersByTime(2000));
+  expect(screen.getAllByText("Passed")).toHaveLength(1);
+  expect(screen.getByRole("link", { name: "Cast your vote" })).toHaveAttribute(
+    "href",
+    "/vote",
+  );
+  act(() => vi.advanceTimersByTime(2000));
+  expect(screen.getAllByText("Passed")).toHaveLength(2);
+  expect(screen.getByRole("button", { name: "Cast your vote" })).toBeDisabled();
+  expect(
+    screen.queryByRole("link", { name: "Cast your vote" }),
+  ).not.toBeInTheDocument();
 });
 
-test("switches candidate content on the candidates page", async () => {
+test("candidate selection updates the profile, video, and vote target", async () => {
+  currentElection = {
+    ...election,
+    candidates: [
+      candidate,
+      {
+        ...candidate,
+        id: "candidate-2",
+        ballotNumber: 2,
+        name: "Candidate Two",
+        videoUrl: null,
+        workPrograms: ["Second candidate program"],
+        vision: "Second candidate vision",
+      },
+    ],
+  };
   renderAt("/candidates");
-  expect(
-    screen.getByRole("heading", { name: "Our Candidates" }),
-  ).toBeInTheDocument();
   expect(screen.getByTitle("Candidate One campaign video")).toHaveAttribute(
     "src",
     "https://www.youtube.com/embed/sample",
   );
-  expect(screen.getByText("Program One")).toBeInTheDocument();
+  await userEvent.click(
+    screen.getByRole("button", { name: /Candidate #02 Candidate Two/ }),
+  );
+  const profile = screen.getByRole("article", {
+    name: "Candidate Two profile",
+  });
+  expect(profile).toHaveTextContent("Second candidate vision");
+  expect(profile).toHaveTextContent("Second candidate program");
+  expect(
+    screen.queryByTitle("Candidate One campaign video"),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByText("Candidate video will be available soon"),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("link", { name: "Vote for this candidate" }),
+  ).toHaveAttribute("href", "/vote");
+  expect(window.location.search).toBe("?candidate=candidate-2");
 });
 
 test("shows an empty state when candidates have no active election", () => {
@@ -195,7 +262,7 @@ test("requires review and final acknowledgment before submitting", async () => {
   renderAt("/vote");
 
   await user.click(
-    screen.getByRole("radio", { name: /candidate 1 candidate one/i }),
+    screen.getByRole("radio", { name: /candidate #01 candidate one/i }),
   );
   await user.click(screen.getByRole("button", { name: "Review your vote" }));
 
@@ -220,6 +287,45 @@ test("receipt status never reveals the candidate choice", () => {
   expect(screen.queryByText("Candidate One")).not.toBeInTheDocument();
 });
 
+test("closes an open confirmation when the voting deadline passes", async () => {
+  currentElection = { ...election, endsAt: "2026-01-01T00:00:01.000Z" };
+  renderAt("/vote");
+  fireEvent.click(
+    screen.getByRole("radio", { name: /candidate #01 candidate one/i }),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Review your vote" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: /vote is final/i }));
+  expect(
+    screen.getByRole("button", { name: /submit final vote/i }),
+  ).toBeEnabled();
+  await act(async () => vi.advanceTimersByTime(1000));
+  expect(
+    screen.getByRole("heading", { name: "Voting is not open" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: /submit final vote/i }),
+  ).not.toBeInTheDocument();
+  expect(castVote).not.toHaveBeenCalled();
+});
+
+test("reports rejected clipboard writes without claiming success", async () => {
+  voteStatus = {
+    hasVoted: true,
+    receiptCode: "EL-PRIVATE-RECEIPT",
+    votedAt: null,
+  };
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: { writeText: vi.fn().mockRejectedValue(new Error("denied")) },
+  });
+  renderAt("/status");
+  fireEvent.click(screen.getByRole("button", { name: "Copy receipt code" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Please copy it manually",
+  );
+  expect(screen.queryByText("Receipt copied")).not.toBeInTheDocument();
+});
+
 test("offers and skips the published results ceremony", async () => {
   election.status = "PUBLISHED";
   publishedResults = {
@@ -233,7 +339,7 @@ test("offers and skips the published results ceremony", async () => {
   const user = userEvent.setup();
   renderAt("/results");
   expect(
-    screen.getByRole("heading", { name: "The results are here." }),
+    screen.getByRole("button", { name: "Begin reveal" }),
   ).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "View full results" }));
   expect(
@@ -245,7 +351,7 @@ test("offers and skips the published results ceremony", async () => {
   expect(sessionStorage.getItem("results-reveal:election-1")).toBe("complete");
 });
 
-test("starts with a countdown before the ceremonial ballot race", async () => {
+test("skipping an active reveal keeps the final results visible", async () => {
   vi.useFakeTimers();
   election.status = "PUBLISHED";
   publishedResults = {
@@ -259,16 +365,17 @@ test("starts with a countdown before the ceremonial ballot race", async () => {
   renderAt("/results");
 
   fireEvent.click(screen.getByRole("button", { name: "Begin reveal" }));
-  expect(screen.getAllByText("3")).toHaveLength(2);
+  expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Skip" }));
   expect(
-    screen.queryByRole("heading", { name: /congratulations/i }),
-  ).not.toBeInTheDocument();
+    screen.getByRole("progressbar", { name: "Candidate One: 8 votes" }),
+  ).toHaveAttribute("aria-valuenow", "8");
 
-  for (let tick = 0; tick < 3; tick += 1) {
-    await act(() => vi.advanceTimersByTimeAsync(700));
-  }
+  await act(() => vi.advanceTimersByTimeAsync(30_000));
   expect(
-    screen.getByRole("heading", { name: "The ballot race is on" }),
-  ).toBeInTheDocument();
-  vi.useRealTimers();
+    screen.getByRole("progressbar", { name: "Candidate One: 8 votes" }),
+  ).toHaveAttribute("aria-valuenow", "8");
+  expect(
+    screen.queryByRole("button", { name: "Skip" }),
+  ).not.toBeInTheDocument();
 });
