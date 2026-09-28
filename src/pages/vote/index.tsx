@@ -84,8 +84,6 @@ function Ballot() {
       ACCOUNT_INACTIVE: "Your HIMTI account is not active.",
       OUTLOOK_DOMAIN_NOT_ALLOWED:
         "This election requires an eligible BINUS Outlook account.",
-      NOT_COMPUTER_SCIENCE:
-        "Voting is available to Computer Science, Data Science, and Game Application and Technology students, and School of Computer Science lecturers.",
       ELECTION_NOT_OPEN: "Voting is not open at this time.",
     };
     return (
