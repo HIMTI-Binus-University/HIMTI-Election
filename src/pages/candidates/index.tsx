@@ -228,7 +228,7 @@ export default function CandidatesPage() {
               <ol className="mt-5 grid gap-3 sm:grid-cols-2">
                 {selected.workPrograms.map((item, index) => (
                   <li
-                    key={item}
+                    key={index}
                     className="flex min-w-0 gap-4 rounded-xl border border-border bg-white p-5 text-base leading-7 text-brand-slate"
                   >
                     <span className="font-bold text-brand-blue">
