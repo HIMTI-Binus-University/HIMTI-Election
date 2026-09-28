@@ -156,8 +156,8 @@ export default function CandidatesPage() {
                     Organization experience
                   </h3>
                   <ul className="mt-2 list-inside list-disc space-y-1 text-sm leading-6 text-brand-slate">
-                    {selected.experiences.map((item) => (
-                      <li key={item}>{item}</li>
+                    {selected.experiences.map((item, index) => (
+                      <li key={index}>{item}</li>
                     ))}
                   </ul>
                 </div>
