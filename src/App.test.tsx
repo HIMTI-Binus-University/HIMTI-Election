@@ -232,6 +232,29 @@ test("candidate selection updates the profile, video, and vote target", async ()
   expect(window.location.search).toBe("?candidate=candidate-2");
 });
 
+test("candidate programs stay isolated when each candidate repeats a program", async () => {
+  currentElection = {
+    ...election,
+    candidates: [1, 2, 3].map((number) => ({
+      ...candidate,
+      id: `candidate-${number}`,
+      ballotNumber: number,
+      name: `Candidate ${number}`,
+      workPrograms: Array(3).fill(`Program ${number}`),
+    })),
+  };
+  renderAt("/candidates");
+  for (const number of [2, 3, 1, 2, 3, 1]) {
+    await userEvent.click(screen.getByRole("button", { name: new RegExp(`Candidate #0${number} Candidate ${number}`) }));
+    const profile = screen.getByRole("article", { name: `Candidate ${number} profile` });
+    expect(Array.from(profile.querySelectorAll("#work-programs + ol li"), (item) => item.textContent)).toEqual([
+      `01Program ${number}`,
+      `02Program ${number}`,
+      `03Program ${number}`,
+    ]);
+  }
+});
+
 test("shows an empty state when candidates have no active election", () => {
   currentElection = null;
   renderAt("/candidates");
