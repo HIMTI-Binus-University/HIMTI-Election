@@ -241,6 +241,7 @@ test("candidate programs stay isolated when each candidate repeats a program", a
       ballotNumber: number,
       name: `Candidate ${number}`,
       workPrograms: Array(3).fill(`Program ${number}`),
+      experiences: Array(3).fill(`Experience ${number}`),
     })),
   };
   renderAt("/candidates");
@@ -251,6 +252,11 @@ test("candidate programs stay isolated when each candidate repeats a program", a
       `01Program ${number}`,
       `02Program ${number}`,
       `03Program ${number}`,
+    ]);
+    expect(Array.from(profile.querySelectorAll("ul li"), (item) => item.textContent)).toEqual([
+      `Experience ${number}`,
+      `Experience ${number}`,
+      `Experience ${number}`,
     ]);
   }
 });
