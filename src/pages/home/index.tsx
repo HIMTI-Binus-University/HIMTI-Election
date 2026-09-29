@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { ArrowRight, Vote } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useCurrentElection } from "@/api/elections";
+import { useSession } from "@/api/auth";
+import { useCurrentElection, useVoteStatus } from "@/api/elections";
 import { ErrorState, LoadingState } from "@/components/async-state";
 import { CandidateImage } from "@/components/candidate-image";
 import { ElectionCountdown } from "@/components/countdown";
@@ -12,6 +13,8 @@ import { formatElectionDate } from "@/utils/date";
 
 export default function HomePage() {
   const election = useCurrentElection();
+  const session = useSession();
+  const voteStatus = useVoteStatus(election.data?.id, Boolean(session.data));
   const [now, setNow] = useState(Date.now);
 
   useEffect(() => {
@@ -97,7 +100,19 @@ export default function HomePage() {
             </p>
           )}
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            {canVote ? (
+            {session.data && !voteStatus.data ? (
+              <Button disabled>
+                <Vote className="size-4" aria-hidden="true" />
+                {voteStatus.isError
+                  ? "Vote status unavailable"
+                  : "Checking vote status..."}
+              </Button>
+            ) : voteStatus.data?.hasVoted ? (
+              <Button disabled>
+                <Vote className="size-4" aria-hidden="true" />
+                You already voted
+              </Button>
+            ) : canVote ? (
               <Button asChild>
                 <Link to="/vote">
                   <Vote className="size-4" aria-hidden="true" />

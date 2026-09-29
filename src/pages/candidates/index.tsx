@@ -1,6 +1,7 @@
 import { PlayCircle, Vote } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
-import { useCurrentElection } from "@/api/elections";
+import { useSession } from "@/api/auth";
+import { useCurrentElection, useVoteStatus } from "@/api/elections";
 import { ErrorState, LoadingState } from "@/components/async-state";
 import { CandidateImage } from "@/components/candidate-image";
 import { PageLayout } from "@/components/layout/page-layout";
@@ -29,6 +30,8 @@ const getEmbedUrl = (value: string | null) => {
 
 export default function CandidatesPage() {
   const election = useCurrentElection();
+  const session = useSession();
+  const voteStatus = useVoteStatus(election.data?.id, Boolean(session.data));
   const [params, setParams] = useSearchParams();
   if (election.isLoading)
     return (
@@ -240,22 +243,38 @@ export default function CandidatesPage() {
               </ol>
             </section>
           )}
-          {canVote && (
+          {(canVote || voteStatus.data?.hasVoted) && (
             <div className="flex flex-col gap-5 rounded-xl bg-brand-pale p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
               <div>
                 <h3 className="text-xl font-bold text-brand-navy">
-                  Ready to vote?
+                  {voteStatus.data?.hasVoted
+                    ? "You already voted"
+                    : "Ready to vote?"}
                 </h3>
                 <p className="mt-1 text-sm leading-6 text-brand-slate">
-                  Review your choice before submitting your ballot.
+                  {voteStatus.data?.hasVoted
+                    ? "Your vote has been recorded."
+                    : "Review your choice before submitting your ballot."}
                 </p>
               </div>
-              <Button asChild className="shrink-0 px-7 py-4 text-base">
-                <Link to="/vote" state={{ candidateId: selected.id }}>
-                  <Vote className="size-4" aria-hidden="true" />
-                  Vote for this candidate
-                </Link>
-              </Button>
+              {session.data && !voteStatus.data ? (
+                <Button disabled className="shrink-0 px-7 py-4 text-base">
+                  {voteStatus.isError
+                    ? "Vote status unavailable"
+                    : "Checking vote status..."}
+                </Button>
+              ) : voteStatus.data?.hasVoted ? (
+                <Button disabled className="shrink-0 px-7 py-4 text-base">
+                  You already voted
+                </Button>
+              ) : (
+                <Button asChild className="shrink-0 px-7 py-4 text-base">
+                  <Link to="/vote" state={{ candidateId: selected.id }}>
+                    <Vote className="size-4" aria-hidden="true" />
+                    Vote for this candidate
+                  </Link>
+                </Button>
+              )}
             </div>
           )}
         </article>
