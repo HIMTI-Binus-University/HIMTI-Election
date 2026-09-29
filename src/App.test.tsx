@@ -191,6 +191,22 @@ test("home orders milestones and keeps voting actions synchronized with the wind
   ).not.toBeInTheDocument();
 });
 
+test("home confirms an existing vote after voting ends", () => {
+  currentElection = { ...election, status: "PUBLISHED" };
+  voteStatus = {
+    hasVoted: true,
+    receiptCode: "EL-PRIVATE-RECEIPT",
+    votedAt: "2026-01-01T00:00:00.000Z",
+  };
+  renderAt("/");
+  expect(
+    screen.getByRole("button", { name: "You already voted" }),
+  ).toBeDisabled();
+  expect(
+    screen.queryByRole("link", { name: "Cast your vote" }),
+  ).not.toBeInTheDocument();
+});
+
 test("candidate selection updates the profile, video, and vote target", async () => {
   currentElection = {
     ...election,
@@ -231,6 +247,25 @@ test("candidate selection updates the profile, video, and vote target", async ()
   ).toHaveAttribute("href", "/vote");
   expect(window.location.search).toBe("?candidate=candidate-2");
 });
+
+test.each(["/candidates", "/candidates/candidate-1"])(
+  "shows a recorded vote after voting closes at %s",
+  (path) => {
+    currentElection = { ...election, status: "PUBLISHED" };
+    voteStatus = {
+      hasVoted: true,
+      receiptCode: "EL-PRIVATE-RECEIPT",
+      votedAt: "2026-01-01T00:00:00.000Z",
+    };
+    renderAt(path);
+    expect(
+      screen.getByRole("button", { name: "You already voted" }),
+    ).toBeDisabled();
+    expect(
+      screen.queryByRole("link", { name: "Vote for this candidate" }),
+    ).not.toBeInTheDocument();
+  },
+);
 
 test("candidate programs stay isolated when each candidate repeats a program", async () => {
   currentElection = {
