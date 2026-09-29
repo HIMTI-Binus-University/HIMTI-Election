@@ -18,10 +18,17 @@ function DevLogin({ returnPath }: { returnPath: string }) {
   const [error, setError] = useState(false);
   useEffect(() => {
     let active = true;
-    void apiClient.get<{ enabled: boolean }>("/auth/dev-login")
-      .then(({ data }) => { if (active) setEnabled(data.enabled === true); })
-      .catch(() => { if (active) setEnabled(false); });
-    return () => { active = false; };
+    void apiClient
+      .get<{ enabled: boolean }>("/auth/dev-login")
+      .then(({ data }) => {
+        if (active) setEnabled(data.enabled === true);
+      })
+      .catch(() => {
+        if (active) setEnabled(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
   if (!enabled) return null;
   const signIn = async () => {
@@ -36,12 +43,22 @@ function DevLogin({ returnPath }: { returnPath: string }) {
       setLoading(false);
     }
   };
-  return <>
-    <Button className="mt-3 w-full sm:w-auto" disabled={loading} onClick={() => void signIn()}>
-      {loading ? "Signing in..." : "Development System login"}
-    </Button>
-    {error && <p role="alert" className="mt-3 text-sm text-red-700">Development sign-in failed. Please try again.</p>}
-  </>;
+  return (
+    <>
+      <Button
+        className="mt-3 w-full sm:w-auto"
+        disabled={loading}
+        onClick={() => void signIn()}
+      >
+        {loading ? "Signing in..." : "Development System login"}
+      </Button>
+      {error && (
+        <p role="alert" className="mt-3 text-sm text-red-700">
+          Development sign-in failed. Please try again.
+        </p>
+      )}
+    </>
+  );
 }
 
 export const VoterGate = ({ children }: { children: ReactNode }) => {
@@ -49,6 +66,18 @@ export const VoterGate = ({ children }: { children: ReactNode }) => {
   const session = useSession();
   const profile = useCurrentUser(Boolean(session.data));
   const returnPath = `${location.pathname}${location.search}${location.hash}`;
+  const [signingIn, setSigningIn] = useState(false);
+  const [signInFailed, setSignInFailed] = useState(false);
+  const signIn = async () => {
+    setSigningIn(true);
+    setSignInFailed(false);
+    try {
+      await signInWithGoogle(returnPath);
+    } catch {
+      setSigningIn(false);
+      setSignInFailed(true);
+    }
+  };
 
   if (session.isLoading || (session.data && profile.isLoading))
     return <LoadingState label="Checking your voting access" />;
@@ -67,10 +96,14 @@ export const VoterGate = ({ children }: { children: ReactNode }) => {
         </p>
         <Button
           className="mt-7 w-full sm:w-auto"
-          onClick={() => void signInWithGoogle(returnPath)}
+          disabled={signingIn}
+          onClick={() => void signIn()}
         >
-          Sign in with Google
+          {signingIn ? "Signing in..." : "Sign in with Google"}
         </Button>
+        {signInFailed && (
+          <p role="alert">Could not start sign-in. Please try again.</p>
+        )}
         <DevLogin returnPath={returnPath} />
       </section>
     );
