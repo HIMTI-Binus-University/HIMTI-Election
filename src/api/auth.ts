@@ -37,20 +37,43 @@ export const useCurrentUser = (enabled: boolean) =>
     retry: false,
   });
 
+let signingIn = false;
 export const signInWithGoogle = async (returnPath: string) => {
-  sessionStorage.setItem(returnKey, returnPath);
-  const { data } = await apiClient.post<{ url?: string }>(apiPaths.signIn, {
-    provider: "google",
-    callbackURL: `${runtime.appUrl}/auth/callback`,
-  });
-  if (!data.url) throw new Error("Sign-in could not be started");
-  window.location.assign(data.url);
+  if (signingIn) return;
+  signingIn = true;
+  try {
+    sessionStorage.setItem(returnKey, returnPath);
+    const { data } = await apiClient.post<{ url?: string }>(apiPaths.signIn, {
+      provider: "google",
+      callbackURL: `${runtime.appUrl}/auth/callback`,
+      errorCallbackURL: `${runtime.appUrl}/auth/error`,
+    });
+    if (!data.url) throw new Error("Sign-in could not be started");
+    window.location.assign(data.url);
+  } catch (error) {
+    signingIn = false;
+    throw error;
+  }
+};
+
+export const getReturnPath = () => {
+  const value = sessionStorage.getItem(returnKey);
+  if (!value) return "/";
+  try {
+    const url = new URL(value, window.location.origin);
+    return url.origin === window.location.origin &&
+      !url.pathname.startsWith("/auth/")
+      ? `${url.pathname}${url.search}${url.hash}`
+      : "/";
+  } catch {
+    return "/";
+  }
 };
 
 export const consumeReturnPath = () => {
-  const value = sessionStorage.getItem(returnKey);
+  const value = getReturnPath();
   sessionStorage.removeItem(returnKey);
-  return value?.startsWith("/") && !value.startsWith("//") ? value : "/";
+  return value;
 };
 
 export const useSignOut = () => {

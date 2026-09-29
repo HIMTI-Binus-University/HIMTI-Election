@@ -9,6 +9,7 @@ import userEvent from "@testing-library/user-event";
 import { BrowserRouter } from "react-router-dom";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import App from "@/App";
+import { signInWithGoogle } from "@/api/auth";
 
 const castVote = vi.fn();
 
@@ -82,6 +83,7 @@ vi.mock("@/api/auth", () => ({
   needsProfileCompletion: () => false,
   signInWithGoogle: vi.fn(),
   consumeReturnPath: () => "/",
+  getReturnPath: () => "/vote",
 }));
 
 vi.mock("@/api/elections", () => ({
@@ -120,6 +122,22 @@ const renderAt = (path: string) => {
     </BrowserRouter>,
   );
 };
+
+test("auth errors retry in election without exposing raw error text", async () => {
+  vi.mocked(signInWithGoogle).mockRejectedValueOnce(new Error("offline"));
+  renderAt("/auth/error?error=state_mismatch&error_description=untrusted");
+  expect(screen.queryByText("untrusted")).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Go home" })).toHaveAttribute(
+    "href",
+    "/",
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+  expect(signInWithGoogle).toHaveBeenCalledWith("/vote");
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Could not start sign-in",
+  );
+  expect(screen.getByRole("button", { name: "Try again" })).toBeEnabled();
+});
 
 beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
@@ -281,14 +299,27 @@ test("candidate programs stay isolated when each candidate repeats a program", a
   };
   renderAt("/candidates");
   for (const number of [2, 3, 1, 2, 3, 1]) {
-    await userEvent.click(screen.getByRole("button", { name: new RegExp(`Candidate #0${number} Candidate ${number}`) }));
-    const profile = screen.getByRole("article", { name: `Candidate ${number} profile` });
-    expect(Array.from(profile.querySelectorAll("#work-programs + ol li"), (item) => item.textContent)).toEqual([
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: new RegExp(`Candidate #0${number} Candidate ${number}`),
+      }),
+    );
+    const profile = screen.getByRole("article", {
+      name: `Candidate ${number} profile`,
+    });
+    expect(
+      Array.from(
+        profile.querySelectorAll("#work-programs + ol li"),
+        (item) => item.textContent,
+      ),
+    ).toEqual([
       `01Program ${number}`,
       `02Program ${number}`,
       `03Program ${number}`,
     ]);
-    expect(Array.from(profile.querySelectorAll("ul li"), (item) => item.textContent)).toEqual([
+    expect(
+      Array.from(profile.querySelectorAll("ul li"), (item) => item.textContent),
+    ).toEqual([
       `Experience ${number}`,
       `Experience ${number}`,
       `Experience ${number}`,
