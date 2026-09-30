@@ -99,7 +99,7 @@ export default function CandidatesPage() {
               onClick={() => setParams({ candidate: candidate.id })}
               aria-pressed={candidate.id === selected.id}
               className={cn(
-                "w-[calc(50%-0.5rem)] max-w-64 overflow-hidden rounded-xl border bg-white text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:w-56",
+                "election-card w-[calc(50%-0.5rem)] max-w-64 overflow-hidden rounded-xl border bg-white text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:w-56",
                 candidate.id === selected.id
                   ? "border-brand-blue ring-1 ring-brand-blue"
                   : "border-border hover:border-brand-blue",

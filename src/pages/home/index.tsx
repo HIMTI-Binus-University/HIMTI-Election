@@ -229,7 +229,7 @@ export default function HomePage() {
                 .map((candidate) => (
                   <article
                     key={candidate.id}
-                    className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-white"
+                    className="election-card flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-white"
                   >
                     <div className="aspect-[4/3] w-full overflow-hidden bg-brand-pale">
                       <CandidateImage

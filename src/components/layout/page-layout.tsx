@@ -169,7 +169,10 @@ export function PageLayout({ children }: { children: ReactNode }) {
           </p>
         )}
       </header>
-      <main className="relative z-10 flex-1 px-4 py-8 sm:px-6 sm:py-12">
+      <main
+        key={location.pathname}
+        className="page-reveal relative z-10 flex-1 px-4 py-8 sm:px-6 sm:py-12"
+      >
         {children}
       </main>
       <footer className="relative z-10 px-4 pb-8 sm:px-6">

@@ -147,7 +147,7 @@ function Ballot() {
               <label
                 key={item.id}
                 className={cn(
-                  "relative w-full max-w-sm cursor-pointer overflow-hidden rounded-xl border bg-white transition-colors focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 sm:w-[calc(50%-0.5rem)] lg:w-[calc(33.333%-0.667rem)]",
+                  "election-card relative w-full max-w-sm cursor-pointer overflow-hidden rounded-xl border bg-white transition-colors focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 sm:w-[calc(50%-0.5rem)] lg:w-[calc(33.333%-0.667rem)]",
                   selected === item.id
                     ? "border-brand-blue ring-1 ring-brand-blue"
                     : "border-border hover:border-brand-blue",
