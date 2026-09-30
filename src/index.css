@@ -70,6 +70,35 @@ dialog::backdrop {
   backdrop-filter: blur(4px);
 }
 @media (prefers-reduced-motion: no-preference) {
+  @media (hover: hover) {
+    .election-button:not(:disabled) {
+      transition:
+        transform 0.16s ease,
+        background-color 0.16s ease,
+        border-color 0.16s ease,
+        box-shadow 0.16s ease;
+    }
+    .election-button:not(:disabled):hover {
+      transform: translateY(-1px);
+      box-shadow: 0 7px 16px rgba(10, 100, 199, 0.18);
+    }
+    .election-button:not(:disabled):active {
+      transform: scale(0.98);
+    }
+    .election-card {
+      transition:
+        transform 0.2s ease,
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+    }
+    .election-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(23, 57, 97, 0.09);
+    }
+    .election-card:not([aria-pressed="true"]):not(:has(input:checked)):hover {
+      border-color: #b9cee4;
+    }
+  }
   .page-reveal {
     animation: page-reveal 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
