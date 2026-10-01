@@ -63,9 +63,10 @@ let publishedResults: null | {
   results: Array<{ candidate: typeof candidate; votes: number }>;
 } = null;
 
+let signedIn = true;
 vi.mock("@/api/auth", () => ({
   useSession: () => ({
-    data: { user: { id: "user-1" } },
+    data: signedIn ? { user: { id: "user-1" } } : null,
     isLoading: false,
     isError: false,
   }),
@@ -140,6 +141,7 @@ test("auth errors retry in election without exposing raw error text", async () =
 });
 
 beforeEach(() => {
+  signedIn = true;
   vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
   castVote.mockReset();
@@ -152,6 +154,16 @@ beforeEach(() => {
   currentElection = election;
   publishedResults = null;
   sessionStorage.clear();
+});
+
+test("signed-out users can open voting from home even after voting ends", () => {
+  signedIn = false;
+  currentElection = { ...election, status: "PUBLISHED" };
+  renderAt("/");
+  expect(screen.getByRole("link", { name: "Cast your vote" })).toHaveAttribute(
+    "href",
+    "/vote",
+  );
 });
 
 afterEach(() => {
