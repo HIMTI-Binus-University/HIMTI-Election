@@ -80,20 +80,50 @@ function Ballot() {
       />
     );
   if (!eligibility.data?.eligible) {
-    const messages: Record<string, string> = {
-      ACCOUNT_INACTIVE: "Your HIMTI account is not active.",
-      OUTLOOK_DOMAIN_NOT_ALLOWED:
-        "This election requires an eligible BINUS Outlook account.",
-      ELECTION_NOT_OPEN: "Voting is not open at this time.",
-    };
     return (
       <ErrorState
         title="You cannot vote in this election"
-        message={
-          messages[eligibility.data?.reason ?? ""] ??
-          "Your profile is not eligible for this election."
-        }
-      />
+        message="Only BINUS School of Computer Science students and lecturers can vote."
+      >
+        <div className="mt-6 border-t border-border pt-6">
+          <p className="text-sm leading-6 text-brand-slate">
+            If you are a School of Computer Science student or lecturer but
+            cannot vote, contact us on WhatsApp for help.
+          </p>
+          <h2 className="mt-5 text-sm font-semibold text-brand-navy">
+            Contact Person
+          </h2>
+          <div
+            className="mt-2 flex flex-wrap justify-center gap-x-6 gap-y-2"
+            aria-label="WhatsApp support contacts"
+          >
+            {[
+              ["Jad", "6285159401224"],
+              ["Josh", "6285716303865"],
+              ["Daffa", "6285887470135"],
+            ].map(([name, number]) => (
+              <a
+                key={number}
+                href={`https://wa.me/${number}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Contact ${name} on WhatsApp (opens in a new tab)`}
+                className="inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm font-semibold text-brand-blue transition-colors hover:text-brand-navy hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  className="size-5 text-green-700"
+                  aria-hidden="true"
+                >
+                  <path d="M20.52 3.48A11.85 11.85 0 0 0 12.06 0C5.47 0 .11 5.36.1 11.95c0 2.1.55 4.15 1.6 5.96L0 24l6.26-1.64a11.94 11.94 0 0 0 5.8 1.48h.01c6.59 0 11.95-5.36 11.96-11.95a11.87 11.87 0 0 0-3.51-8.41ZM12.07 21.82a9.9 9.9 0 0 1-5.04-1.38l-.36-.21-3.72.98.99-3.63-.24-.37a9.9 9.9 0 0 1-1.52-5.26c0-5.48 4.46-9.94 9.95-9.94a9.88 9.88 0 0 1 7.03 2.92 9.87 9.87 0 0 1 2.91 7.04c0 5.48-4.46 9.95-10 9.95Zm5.46-7.45c-.3-.15-1.77-.87-2.04-.97-.28-.1-.48-.15-.68.15-.2.3-.77.97-.95 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.8-1.49-1.78-1.66-2.08-.18-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.18.2-.3.3-.5.1-.2.05-.38-.03-.53-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.5 0 1.46 1.07 2.89 1.22 3.09.15.2 2.1 3.2 5.09 4.49.71.31 1.27.49 1.71.63.72.23 1.37.2 1.88.12.57-.09 1.77-.73 2.02-1.44.25-.71.25-1.32.17-1.44-.07-.13-.27-.2-.57-.35Z" />
+                </svg>
+                {name}
+              </a>
+            ))}
+          </div>
+        </div>
+      </ErrorState>
     );
   }
 
