@@ -100,7 +100,14 @@ export default function HomePage() {
             </p>
           )}
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            {session.data && !voteStatus.data ? (
+            {!session.data ? (
+              <Button asChild>
+                <Link to="/vote">
+                  <Vote className="size-4" aria-hidden="true" />
+                  Cast your vote
+                </Link>
+              </Button>
+            ) : !voteStatus.data ? (
               <Button disabled>
                 <Vote className="size-4" aria-hidden="true" />
                 {voteStatus.isError
