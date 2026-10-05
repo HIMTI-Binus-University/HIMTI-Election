@@ -4,16 +4,17 @@ services:
   app:
     build:
       context: .
-      args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000/api}
-        VITE_APP_URL: ${VITE_APP_URL:-http://localhost:3002}
-        VITE_REGISTRATION_APP_URL: ${VITE_REGISTRATION_APP_URL:-http://localhost:3001}
-    image: himti-election-frontend:local
+      target: development
+    image: himti-election-frontend:dev
     container_name: himti-election-frontend
+    working_dir: /app
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000/api}
+      VITE_APP_URL: ${VITE_APP_URL:-http://localhost:3002}
+      VITE_REGISTRATION_APP_URL: ${VITE_REGISTRATION_APP_URL:-http://localhost:3001}
+    command: ["npm", "run", "dev"]
     ports:
-      - "${FRONTEND_PORT:-3002}:80"
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/healthz"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - "${FRONTEND_PORT:-3002}:3002"
+    volumes:
+      - .:/app
+      - /app/node_modules
