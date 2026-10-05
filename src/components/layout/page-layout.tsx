@@ -31,12 +31,12 @@ export function PageLayout({ children }: { children: ReactNode }) {
   };
   const [menuOpen, setMenuOpen] = useState(false);
   return (
-    <div className="election-wash relative flex min-h-dvh flex-col overflow-hidden text-foreground">
+    <div className="election-wash relative flex min-h-dvh flex-col overflow-x-clip text-foreground">
       <div
         aria-hidden="true"
         className="grid-mark pointer-events-none absolute inset-x-0 top-0 h-[34rem]"
       />
-      <header className="relative z-20 px-4 pt-4 sm:px-6 sm:pt-6">
+      <header className="sticky top-0 z-30 px-4 pt-4 sm:px-6 sm:pt-6">
         <div className="mx-auto grid max-w-6xl grid-cols-[1fr_auto] items-center rounded-2xl border border-white/80 bg-white/90 px-4 py-3 shadow-[0_10px_30px_-22px_rgba(0,33,79,0.6)] backdrop-blur sm:grid-cols-[1fr_auto_1fr] sm:px-5">
           <Link
             to="/"

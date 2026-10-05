@@ -83,7 +83,19 @@ function Ballot() {
     return (
       <ErrorState
         title="You cannot vote in this election"
-        message="Only BINUS School of Computer Science students and lecturers can vote."
+        message={
+          eligibility.data?.reason === "NOT_SOCS"
+            ? "Only BINUS School of Computer Science students and lecturers can vote. Your SoCS membership must be verified by an administrator."
+            : eligibility.data?.reason === "ACCOUNT_INACTIVE"
+              ? "Your account is inactive. Contact support to restore voting access."
+              : eligibility.data?.reason === "PROFILE_INCOMPLETE"
+                ? "Complete your membership profile before voting."
+                : eligibility.data?.reason === "OUTLOOK_NOT_VERIFIED"
+                  ? "Verify your BINUS Outlook email before voting."
+                  : eligibility.data?.reason === "OUTLOOK_DOMAIN_NOT_ALLOWED"
+                    ? "Voting requires a verified binus.ac.id or binus.edu email."
+                    : "Voting is not available for your account at this time."
+        }
       >
         <div className="mt-6 border-t border-border pt-6">
           <p className="text-sm leading-6 text-brand-slate">
@@ -157,19 +169,19 @@ function Ballot() {
 
   return (
     <>
-      <div className="mx-auto max-w-6xl space-y-9 sm:space-y-12">
-        <header className="rounded-xl border border-brand-blue/20 bg-brand-pale px-6 py-9 sm:px-10 sm:py-12">
+      <div className="mx-auto max-w-3xl space-y-6 sm:space-y-8">
+        <header>
           <p className="text-sm font-semibold text-brand-blue">
             {election.data.title}
           </p>
-          <h1 className="mt-3 text-4xl font-bold leading-tight tracking-tight text-brand-navy sm:text-5xl">
+          <h1 className="mt-2 text-3xl font-bold leading-tight tracking-tight text-brand-navy sm:text-4xl">
             Choose one candidate
           </h1>
-          <p className="mt-4 text-base leading-7 text-brand-slate">
+          <p className="mt-3 text-sm leading-6 text-brand-slate">
             Your selection is not submitted until you review and confirm it.
           </p>
         </header>
-        <fieldset className="flex flex-wrap justify-center gap-4">
+        <fieldset className="min-w-0 space-y-3">
           <legend className="sr-only">Election candidates</legend>
           {[...election.data.candidates]
             .sort((a, b) => a.ballotNumber - b.ballotNumber)
@@ -177,69 +189,63 @@ function Ballot() {
               <label
                 key={item.id}
                 className={cn(
-                  "election-card relative w-full max-w-sm cursor-pointer overflow-hidden rounded-xl border bg-white transition-colors focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 sm:w-[calc(50%-0.5rem)] lg:w-[calc(33.333%-0.667rem)]",
+                  "relative flex w-full cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 sm:gap-5 sm:p-4",
                   selected === item.id
-                    ? "border-brand-blue ring-1 ring-brand-blue"
-                    : "border-border hover:border-brand-blue",
+                    ? "border-brand-blue bg-brand-pale ring-1 ring-brand-blue"
+                    : "border-border bg-white hover:border-brand-blue",
                 )}
               >
-                <input
-                  type="radio"
-                  name="candidate"
-                  value={item.id}
-                  checked={selected === item.id}
-                  onChange={() => setSelected(item.id)}
-                  className="sr-only"
-                />
-                <div className="aspect-[4/3] overflow-hidden bg-brand-pale">
+                <span
+                  className={cn(
+                    "grid size-11 shrink-0 place-items-center rounded-full text-xl font-bold tabular-nums transition-colors sm:size-14 sm:text-2xl",
+                    selected === item.id
+                      ? "bg-primary text-primary-foreground"
+                      : "text-brand-blue",
+                  )}
+                  aria-hidden="true"
+                >
+                  {String(item.ballotNumber).padStart(2, "0")}
+                </span>
+                <div className="size-14 shrink-0 overflow-hidden rounded-md bg-brand-pale sm:size-20">
                   <CandidateImage
                     src={item.photoUrl}
                     name={item.name}
                     className="bg-brand-pale bg-none text-brand-slate"
                   />
                 </div>
-                <div className="p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <span className="text-sm font-semibold text-brand-blue">
-                        Candidate #{String(item.ballotNumber).padStart(2, "0")}
-                      </span>
-                      <h2 className="mt-1 break-words text-xl font-bold text-brand-navy">
-                        {item.name}
-                      </h2>
-                    </div>
-                    {selected === item.id ? (
-                      <span className="grid size-7 shrink-0 place-items-center rounded-full bg-brand-blue text-white">
-                        <Check className="size-4" />
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="mt-3 line-clamp-3 text-sm leading-6 text-brand-slate">
-                    {item.vision}
-                  </p>
+                <div className="min-w-0 flex-1">
+                  <h2 className="break-words text-base font-bold text-brand-navy sm:text-xl">
+                    {item.name}
+                  </h2>
+                  {item.biography ? (
+                    <p className="mt-1 line-clamp-3 break-words text-sm leading-6 text-brand-slate">
+                      {item.biography}
+                    </p>
+                  ) : null}
                 </div>
+                <input
+                  type="radio"
+                  name="candidate"
+                  value={item.id}
+                  aria-label={`Candidate #${String(item.ballotNumber).padStart(2, "0")}: ${item.name}`}
+                  checked={selected === item.id}
+                  onChange={() => setSelected(item.id)}
+                  className="sr-only"
+                />
               </label>
             ))}
         </fieldset>
-        <div className="flex flex-col gap-5 rounded-xl bg-brand-pale p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
-          <div>
-            <h2 className="text-xl font-bold text-brand-navy">
-              Ready to review?
-            </h2>
-            <p className="mt-1 text-sm leading-6 text-brand-slate">
-              Check your selection before submitting your final vote.
-            </p>
-          </div>
+        <div className="flex justify-end">
           <Button
-            className="shrink-0 px-7 py-4 text-base"
-            disabled={!canVoteNow || !selected}
+            className="w-full px-7 py-4 text-base sm:w-auto"
+            disabled={!canVoteNow || !candidate}
             onClick={() => {
               setAcknowledged(false);
               setError("");
               dialogRef.current?.showModal();
             }}
           >
-            Review your vote
+            Cast your vote
           </Button>
         </div>
       </div>

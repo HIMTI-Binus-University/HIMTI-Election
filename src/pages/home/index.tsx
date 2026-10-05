@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, Vote } from "lucide-react";
+import { ArrowRight, Check, Vote } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useSession } from "@/api/auth";
 import { useCurrentElection, useVoteStatus } from "@/api/elections";
@@ -48,14 +48,6 @@ export default function HomePage() {
     data.status === "PUBLISHED" ||
     now >= new Date(data.endsAt).getTime();
   const canVote = data.status === "OPEN" && !beforeStart && !ended;
-  const status =
-    data.status === "PUBLISHED"
-      ? "Results published"
-      : ended
-        ? "Voting has ended"
-        : canVote
-          ? "Voting is open"
-          : "Voting has not opened";
   const countdownLabel = ended
     ? "Voting has ended"
     : beforeStart
@@ -83,23 +75,26 @@ export default function HomePage() {
       <div className="mx-auto max-w-6xl space-y-10 sm:space-y-14">
         <section
           aria-labelledby="election-title"
-          className="rounded-xl border border-brand-blue/20 bg-brand-pale p-6 sm:p-8 lg:p-10"
+          className="election-hero px-2 py-12 text-center sm:px-10 sm:py-20"
         >
-          <p className="text-sm font-semibold text-brand-blue" role="status">
-            {status}
-          </p>
           <h1
             id="election-title"
-            className="mt-3 max-w-4xl break-words text-4xl font-bold leading-tight tracking-tight text-brand-navy [text-wrap:balance] sm:text-5xl"
+            className="mx-auto max-w-5xl break-words text-5xl font-bold leading-tight tracking-tight text-brand-navy [text-wrap:balance] sm:text-6xl lg:text-7xl"
           >
             {data.title}
           </h1>
           {data.description && (
-            <p className="mt-4 whitespace-pre-line break-words text-base leading-7 text-brand-slate">
+            <p className="mx-auto mt-6 max-w-3xl whitespace-pre-line break-words text-lg leading-8 text-brand-slate sm:text-xl sm:leading-9">
               {data.description}
             </p>
           )}
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row sm:flex-wrap">
+            <Button asChild variant="outline">
+              <Link to="/candidates">
+                Explore candidates
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </Link>
+            </Button>
             {!session.data ? (
               <Button asChild>
                 <Link to="/vote">
@@ -132,12 +127,6 @@ export default function HomePage() {
                 Cast your vote
               </Button>
             )}
-            <Button asChild variant="outline">
-              <Link to="/candidates">
-                Explore candidates
-                <ArrowRight className="size-4" aria-hidden="true" />
-              </Link>
-            </Button>
             {data.status === "PUBLISHED" && (
               <Button asChild variant="outline">
                 <Link to="/results">View results</Link>
@@ -162,45 +151,40 @@ export default function HomePage() {
           >
             Election Schedule
           </h2>
-          <p className="mt-1 text-sm text-brand-slate">
-            All times in WIB (Jakarta).
-          </p>
           <ol
             aria-label="Election timeline"
-            className="mt-7 flex flex-col sm:flex-row"
+            className="mt-7 flex w-full flex-col sm:flex-row"
           >
-            {milestones.map(({ label, at }, index) => {
+            {milestones.map(({ label, at }) => {
               const passed = new Date(at).getTime() <= now;
-              const segmentPassed =
-                index < milestones.length - 1 &&
-                new Date(milestones[index + 1].at).getTime() <= now;
               return (
                 <li
                   key={label}
-                  className="group relative min-w-0 flex-1 pb-6 pl-6 last:pb-0 sm:pb-0 sm:pl-0 sm:pr-6 sm:pt-6 sm:last:pr-0"
+                  className="relative min-w-0 flex-1 pb-4 pl-8 sm:px-2 sm:pb-0 sm:pt-9 before:absolute before:bottom-0 before:left-2 before:top-0 before:w-px before:bg-border sm:before:inset-x-0 sm:before:top-2 sm:before:h-px sm:before:w-full"
                 >
                   <span
                     aria-hidden="true"
-                    className={`absolute bottom-0 left-1 top-1 w-px group-last:hidden sm:bottom-auto sm:h-px sm:w-full ${segmentPassed ? "bg-brand-blue" : "bg-border"}`}
+                    className={`absolute left-0 top-0 z-10 size-4 rounded-full border-2 sm:left-1/2 sm:-translate-x-1/2 ${passed ? "border-brand-blue bg-brand-blue" : "border-brand-blue bg-white"}`}
                   />
-                  <span
-                    aria-hidden="true"
-                    className={`absolute left-0 top-0 size-[9px] rounded-full border-2 border-brand-blue ${passed ? "bg-brand-blue" : "bg-white"}`}
-                  />
-                  <h3 className="text-sm font-semibold text-brand-navy">
-                    {label}
-                    {passed && (
-                      <span className="ml-2 text-xs font-medium text-brand-blue">
-                        Passed
-                      </span>
-                    )}
-                  </h3>
-                  <time
-                    dateTime={at}
-                    className="mt-2 block text-sm leading-6 text-brand-slate"
+                  <div
+                    className={`h-full rounded-xl border p-5 text-center ${passed ? "border-brand-blue bg-brand-pale" : "border-border bg-white"}`}
                   >
-                    {formatElectionDate(at)}
-                  </time>
+                    <h3 className="text-base font-semibold text-brand-navy">
+                      {label}
+                      {passed && (
+                        <span className="mx-auto mt-3 flex w-fit items-center gap-1.5 rounded-full bg-brand-blue px-3 py-1 text-xs font-semibold text-white">
+                          <Check className="size-3.5" aria-hidden="true" />{" "}
+                          Completed
+                        </span>
+                      )}
+                    </h3>
+                    <time
+                      dateTime={at}
+                      className="mt-2 block text-sm leading-6 text-brand-slate"
+                    >
+                      {formatElectionDate(at)}
+                    </time>
+                  </div>
                 </li>
               );
             })}
@@ -227,16 +211,14 @@ export default function HomePage() {
               Candidate profiles will appear here when they are available.
             </p>
           ) : (
-            <div
-              className={`mt-6 grid gap-5 md:grid-cols-2 ${data.candidates.length >= 3 ? "lg:grid-cols-3" : ""}`}
-            >
+            <div className="mt-6 flex flex-wrap justify-center gap-5">
               {data.candidates
                 .slice()
                 .sort((a, b) => a.ballotNumber - b.ballotNumber)
                 .map((candidate) => (
                   <article
                     key={candidate.id}
-                    className="election-card flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-white"
+                    className="election-card flex w-full max-w-sm min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-white sm:w-[calc(50%-0.625rem)] lg:w-[calc(33.333%-0.834rem)]"
                   >
                     <div className="aspect-[4/3] w-full overflow-hidden bg-brand-pale">
                       <CandidateImage
