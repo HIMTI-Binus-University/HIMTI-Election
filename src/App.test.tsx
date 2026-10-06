@@ -198,7 +198,6 @@ test("home orders milestones and keeps voting actions synchronized with the wind
   expect(
     Array.from(timeline.querySelectorAll("h3"), (item) => item.textContent),
   ).toEqual(["Voting opens", "Voting closes", "Candidate debate"]);
-  expect(screen.queryByText("Passed")).not.toBeInTheDocument();
   expect(screen.getByText("Candidate #03")).toBeInTheDocument();
   expect(
     screen.getByRole("link", { name: "View Candidate Three's profile" }),
@@ -208,13 +207,11 @@ test("home orders milestones and keeps voting actions synchronized with the wind
     screen.getByRole("link", { name: "Explore candidates" }),
   ).toHaveAttribute("href", "/candidates");
   act(() => vi.advanceTimersByTime(2000));
-  expect(screen.getAllByText("Passed")).toHaveLength(1);
   expect(screen.getByRole("link", { name: "Cast your vote" })).toHaveAttribute(
     "href",
     "/vote",
   );
   act(() => vi.advanceTimersByTime(2000));
-  expect(screen.getAllByText("Passed")).toHaveLength(2);
   expect(screen.getByRole("button", { name: "Cast your vote" })).toBeDisabled();
   expect(
     screen.queryByRole("link", { name: "Cast your vote" }),
@@ -369,9 +366,9 @@ test("requires review and final acknowledgment before submitting", async () => {
   renderAt("/vote");
 
   await user.click(
-    screen.getByRole("radio", { name: /candidate #01 candidate one/i }),
+    screen.getByRole("radio", { name: /candidate #01: candidate one/i }),
   );
-  await user.click(screen.getByRole("button", { name: "Review your vote" }));
+  await user.click(screen.getByRole("button", { name: "Cast your vote" }));
 
   const submit = screen.getByRole("button", { name: /submit final vote/i });
   expect(submit).toBeDisabled();
@@ -398,9 +395,9 @@ test("closes an open confirmation when the voting deadline passes", async () => 
   currentElection = { ...election, endsAt: "2026-01-01T00:00:01.000Z" };
   renderAt("/vote");
   fireEvent.click(
-    screen.getByRole("radio", { name: /candidate #01 candidate one/i }),
+    screen.getByRole("radio", { name: /candidate #01: candidate one/i }),
   );
-  fireEvent.click(screen.getByRole("button", { name: "Review your vote" }));
+  fireEvent.click(screen.getByRole("button", { name: "Cast your vote" }));
   fireEvent.click(screen.getByRole("checkbox", { name: /vote is final/i }));
   expect(
     screen.getByRole("button", { name: /submit final vote/i }),

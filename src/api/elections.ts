@@ -44,6 +44,7 @@ export type EligibilityReason =
   | "PROFILE_INCOMPLETE"
   | "OUTLOOK_NOT_VERIFIED"
   | "OUTLOOK_DOMAIN_NOT_ALLOWED"
+  | "NOT_SOCS"
   | "ELECTION_NOT_OPEN"
   | "ALREADY_VOTED";
 
