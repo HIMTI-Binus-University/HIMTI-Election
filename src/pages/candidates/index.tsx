@@ -75,7 +75,7 @@ export default function CandidatesPage() {
   return (
     <PageLayout>
       <div className="mx-auto max-w-6xl space-y-9 sm:space-y-12">
-        <header className="rounded-xl border border-brand-blue/20 bg-brand-pale px-6 py-9 sm:px-10 sm:py-12">
+        <header className="max-w-3xl py-2 sm:py-4">
           <p className="text-sm font-semibold text-brand-blue">
             {election.data.title}
           </p>
@@ -88,7 +88,7 @@ export default function CandidatesPage() {
           </p>
         </header>
 
-        <div className="grid items-start gap-3 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <div className="grid items-start gap-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-8">
           <nav
             aria-label="Select a candidate"
             className="sticky top-24 z-20 flex min-w-0 gap-3 overflow-x-auto rounded-xl bg-background p-1 lg:top-28 lg:max-h-[calc(100dvh-8rem)] lg:flex-col lg:overflow-y-auto"
@@ -102,7 +102,7 @@ export default function CandidatesPage() {
                 className={cn(
                   "flex min-h-20 w-56 shrink-0 items-center gap-3 rounded-xl border bg-white p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:w-full",
                   candidate.id === selected.id
-                    ? "border-brand-blue ring-1 ring-brand-blue"
+                    ? "border-brand-blue bg-brand-pale ring-1 ring-brand-blue"
                     : "border-border hover:border-brand-blue",
                 )}
               >
@@ -129,8 +129,8 @@ export default function CandidatesPage() {
             className="min-w-0 space-y-6"
             aria-label={`${selected.name} profile`}
           >
-            <section className="space-y-4 rounded-xl border border-border bg-white p-4 sm:p-5">
-              <div className="flex items-start gap-3 sm:gap-5">
+            <section className="space-y-6 rounded-xl border border-border bg-white p-5 sm:p-8">
+              <div className="flex items-start gap-4 sm:gap-6">
                 <div className="size-20 shrink-0 overflow-hidden rounded-lg bg-brand-pale sm:size-36">
                   <CandidateImage
                     src={selected.photoUrl}
@@ -150,13 +150,13 @@ export default function CandidatesPage() {
                       “{selected.slogan}”
                     </p>
                   )}
-                  {selected.biography && (
-                    <p className="mt-3 whitespace-pre-line break-words text-sm leading-6 text-brand-slate sm:text-base sm:leading-7">
-                      {selected.biography}
-                    </p>
-                  )}
                 </div>
               </div>
+              {selected.biography && (
+                <p className="max-w-prose whitespace-pre-line break-words text-base leading-7 text-brand-slate">
+                  {selected.biography}
+                </p>
+              )}
               {selected.experiences.length > 0 && (
                 <div className="min-w-0 border-t border-border pt-4">
                   <h3 className="font-bold text-brand-navy">
@@ -180,9 +180,10 @@ export default function CandidatesPage() {
               </h3>
               <div
                 className={cn(
-                  "mt-3 aspect-video overflow-hidden rounded-xl bg-brand-navy",
-                  embedUrl?.startsWith("https://drive.google.com/") &&
-                    "min-h-80 sm:min-h-0",
+                  "relative mt-4 overflow-hidden rounded-xl bg-brand-navy",
+                  embedUrl?.startsWith("https://drive.google.com/")
+                    ? "h-80 sm:h-auto sm:aspect-video"
+                    : "aspect-video",
                 )}
               >
                 {embedUrl ? (
@@ -190,13 +191,13 @@ export default function CandidatesPage() {
                     key={selected.id}
                     src={embedUrl}
                     title={`${selected.name} campaign video`}
-                    className="h-full w-full"
+                    className="absolute inset-0 h-full w-full border-0"
                     loading="lazy"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
                   />
                 ) : (
-                  <div className="grid h-full place-items-center text-center text-white">
+                  <div className="absolute inset-0 grid place-items-center p-5 text-center text-white">
                     <div>
                       <PlayCircle
                         className="mx-auto size-12 text-brand-sky"
@@ -209,19 +210,29 @@ export default function CandidatesPage() {
                   </div>
                 )}
               </div>
+              {embedUrl && selected.videoUrl && (
+                <a
+                  href={embedUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-flex min-h-11 items-center rounded-lg text-sm font-semibold text-brand-blue underline underline-offset-4 hover:text-brand-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  Open campaign video in a new tab
+                </a>
+              )}
             </section>
 
             <section
               aria-label="Vision and mission"
-              className="grid gap-3 md:grid-cols-2"
+              className="grid gap-6 border-t border-border pt-6 xl:grid-cols-2"
             >
-              <div className="min-w-0 rounded-xl border border-border bg-white p-5">
+              <div className="min-w-0">
                 <h3 className="text-2xl font-bold text-brand-navy">Vision</h3>
                 <p className="mt-3 whitespace-pre-line break-words text-base leading-7 text-brand-slate">
                   {selected.vision}
                 </p>
               </div>
-              <div className="min-w-0 rounded-xl border border-border bg-white p-5">
+              <div className="min-w-0">
                 <h3 className="text-2xl font-bold text-brand-navy">Mission</h3>
                 <p className="mt-3 whitespace-pre-line break-words text-base leading-7 text-brand-slate">
                   {selected.mission}
@@ -237,11 +248,11 @@ export default function CandidatesPage() {
                 >
                   Work Programs
                 </h3>
-                <ol className="mt-3 grid gap-3 sm:grid-cols-2">
+                <ol className="mt-3 divide-y divide-border">
                   {selected.workPrograms.map((item, index) => (
                     <li
                       key={index}
-                      className="flex min-w-0 gap-3 rounded-xl border border-border bg-white p-5 text-base leading-7 text-brand-slate"
+                      className="flex min-w-0 gap-4 py-4 text-base leading-7 text-brand-slate"
                     >
                       <span className="font-bold text-brand-blue">
                         {String(index + 1).padStart(2, "0")}
