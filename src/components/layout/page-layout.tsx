@@ -101,7 +101,7 @@ export function PageLayout({ children }: { children: ReactNode }) {
                 onClick={() => void signOut()}
               >
                 <LogOut className="size-4" aria-hidden="true" />
-                <span>Sign out</span>
+                <span>Logout</span>
               </Button>
             ) : (
               <Button
@@ -157,7 +157,7 @@ export function PageLayout({ children }: { children: ReactNode }) {
                 className="flex items-center justify-center gap-2 rounded-xl border border-red-300 bg-white px-4 py-3 font-semibold text-red-700 hover:bg-red-50"
                 onClick={() => void signOut()}
               >
-                <LogOut className="size-4" aria-hidden="true" /> Sign out
+                <LogOut className="size-4" aria-hidden="true" /> Logout
               </button>
             ) : (
               <button
