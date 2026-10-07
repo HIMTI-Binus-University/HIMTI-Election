@@ -143,7 +143,7 @@ export default function HomePage() {
 
         <section
           aria-labelledby="election-schedule"
-          className="rounded-xl border border-border bg-white px-5 py-6 sm:p-8"
+          className="rounded-xl border border-border bg-white px-5 py-6 shadow-brand sm:p-8"
         >
           <h2
             id="election-schedule"
@@ -167,16 +167,10 @@ export default function HomePage() {
                     className={`absolute left-0 top-0 z-10 size-4 rounded-full border-2 sm:left-1/2 sm:-translate-x-1/2 ${passed ? "border-brand-blue bg-brand-blue" : "border-brand-blue bg-white"}`}
                   />
                   <div
-                    className={`h-full rounded-xl border p-5 text-center ${passed ? "border-brand-blue bg-brand-pale" : "border-border bg-white"}`}
+                    className={`flex h-full flex-col items-center justify-center rounded-xl border p-5 text-center shadow-brand ${passed ? "border-brand-blue bg-brand-pale" : "border-border bg-white"}`}
                   >
                     <h3 className="text-base font-semibold text-brand-navy">
                       {label}
-                      {passed && (
-                        <span className="mx-auto mt-3 flex w-fit items-center gap-1.5 rounded-full bg-brand-blue px-3 py-1 text-xs font-semibold text-white">
-                          <Check className="size-3.5" aria-hidden="true" />{" "}
-                          Completed
-                        </span>
-                      )}
                     </h3>
                     <time
                       dateTime={at}
@@ -184,6 +178,11 @@ export default function HomePage() {
                     >
                       {formatElectionDate(at)}
                     </time>
+                    {passed && (
+                      <span className="mx-auto mt-3 flex w-fit items-center gap-1.5 rounded-full bg-brand-blue px-3 py-1 text-xs font-semibold text-white">
+                        <Check className="size-3.5" aria-hidden="true" /> Completed
+                      </span>
+                    )}
                   </div>
                 </li>
               );
@@ -218,7 +217,7 @@ export default function HomePage() {
                 .map((candidate) => (
                   <article
                     key={candidate.id}
-                    className="election-card flex w-full max-w-sm min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-white sm:w-[calc(50%-0.625rem)] lg:w-[calc(33.333%-0.834rem)]"
+                    className="election-card flex w-full max-w-sm min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-white shadow-brand sm:w-[calc(50%-0.625rem)] lg:w-[calc(33.333%-0.834rem)]"
                   >
                     <div className="aspect-[4/3] w-full overflow-hidden bg-brand-pale">
                       <CandidateImage

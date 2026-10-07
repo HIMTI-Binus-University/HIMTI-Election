@@ -118,6 +118,41 @@ dialog::backdrop {
     }
   }
 }
+
+@media (prefers-reduced-motion: no-preference) {
+  .mobile-navigation {
+    animation: mobile-navigation-in 0.2s ease-out both;
+    transform-origin: top center;
+  }
+
+  @keyframes mobile-navigation-in {
+    from {
+      opacity: 0;
+      transform: translateY(-0.5rem) scaleY(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scaleY(1);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mobile-navigation-closing {
+    animation: mobile-navigation-out 0.18s ease-in both;
+  }
+
+  @keyframes mobile-navigation-out {
+    from {
+      opacity: 1;
+      transform: translateY(0) scaleY(1);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-0.5rem) scaleY(0.96);
+    }
+  }
+}
 .reveal-stage {
   overflow: hidden;
 }

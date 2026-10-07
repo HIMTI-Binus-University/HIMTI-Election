@@ -22,7 +22,7 @@ function ResultsNotice({
   return (
     <section
       role={error ? "alert" : undefined}
-      className="mx-auto max-w-6xl rounded-xl border border-brand-blue/20 bg-brand-pale px-6 py-9 sm:px-10 sm:py-12"
+      className="mx-auto max-w-6xl rounded-xl border border-border bg-white px-6 py-9 shadow-brand sm:px-10 sm:py-12"
     >
       <Icon className="size-8 text-brand-blue" aria-hidden="true" />
       <h1 className="mt-5 break-words text-3xl font-bold leading-tight tracking-tight text-brand-navy sm:text-4xl">
@@ -140,7 +140,7 @@ export default function ResultsPage() {
             {winner ? (
               <section
                 aria-labelledby="winner-name"
-                className="grid overflow-hidden rounded-xl border border-border bg-white md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]"
+                className="grid overflow-hidden rounded-xl border border-border bg-white shadow-brand md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]"
               >
                 <div className="aspect-[4/3] overflow-hidden bg-brand-pale md:aspect-auto md:min-h-80">
                   <CandidateImage
@@ -183,7 +183,7 @@ export default function ResultsPage() {
             ) : leaders.length > 1 ? (
               <section
                 aria-labelledby="tied-leaders"
-                className="rounded-xl border border-border bg-white p-6 sm:p-9"
+                className="rounded-xl border border-border bg-white p-6 shadow-brand sm:p-9"
               >
                 <h2
                   id="tied-leaders"
@@ -228,7 +228,7 @@ export default function ResultsPage() {
             ) : (
               <section
                 aria-labelledby="results-outcome"
-                className="rounded-xl border border-border bg-white p-6 sm:p-9"
+                className="rounded-xl border border-border bg-white p-6 shadow-brand sm:p-9"
               >
                 <h2
                   id="results-outcome"
@@ -248,7 +248,7 @@ export default function ResultsPage() {
 
             <section
               aria-labelledby="vote-breakdown"
-              className="rounded-xl border border-border bg-white p-6 sm:p-9"
+              className="rounded-xl border border-border bg-white p-6 shadow-brand sm:p-9"
             >
               <div className="flex flex-wrap items-baseline justify-between gap-3">
                 <h2

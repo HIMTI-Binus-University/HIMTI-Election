@@ -91,7 +91,7 @@ export default function CandidatesPage() {
         <div className="grid items-start gap-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-8">
           <nav
             aria-label="Select a candidate"
-            className="sticky top-24 z-20 flex min-w-0 gap-3 overflow-x-auto rounded-xl bg-background p-1 lg:top-28 lg:max-h-[calc(100dvh-8rem)] lg:flex-col lg:overflow-y-auto"
+            className="flex min-w-0 gap-3 overflow-x-auto lg:sticky lg:top-24 lg:z-20 lg:max-h-[calc(100dvh-8rem)] lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:rounded-xl lg:bg-background lg:p-1 lg:top-28"
           >
             {candidates.map((candidate) => (
               <button
@@ -129,7 +129,7 @@ export default function CandidatesPage() {
             className="min-w-0 space-y-6"
             aria-label={`${selected.name} profile`}
           >
-            <section className="space-y-6 rounded-xl border border-border bg-white p-5 sm:p-8">
+            <section className="space-y-6 rounded-xl border border-border bg-white p-5 shadow-brand sm:p-8">
               <div className="flex items-start gap-4 sm:gap-6">
                 <div className="size-20 shrink-0 overflow-hidden rounded-lg bg-brand-pale sm:size-36">
                   <CandidateImage
@@ -180,7 +180,7 @@ export default function CandidatesPage() {
               </h3>
               <div
                 className={cn(
-                  "relative mt-4 overflow-hidden rounded-xl bg-brand-navy",
+                  "relative mt-4 overflow-hidden rounded-xl bg-brand-navy shadow-brand",
                   embedUrl?.startsWith("https://drive.google.com/")
                     ? "h-80 sm:h-auto sm:aspect-video"
                     : "aspect-video",
