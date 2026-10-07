@@ -72,7 +72,7 @@ export function PageLayout({ children }: { children: ReactNode }) {
             </span>
           </Link>
           <nav
-            className="hidden items-center gap-2 sm:flex"
+            className="hidden items-center justify-self-center gap-2 sm:flex"
             aria-label="Main navigation"
           >
             {[
