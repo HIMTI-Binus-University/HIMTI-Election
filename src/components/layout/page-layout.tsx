@@ -30,14 +30,26 @@ export function PageLayout({ children }: { children: ReactNode }) {
     }
   };
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuClosing, setMenuClosing] = useState(false);
+  const toggleMenu = () => {
+    if (menuOpen) {
+      setMenuClosing(true);
+      window.setTimeout(() => {
+        setMenuOpen(false);
+        setMenuClosing(false);
+      }, 180);
+      return;
+    }
+    setMenuOpen(true);
+  };
   return (
     <div className="election-wash relative flex min-h-dvh flex-col overflow-x-clip text-foreground">
       <div
         aria-hidden="true"
         className="grid-mark pointer-events-none absolute inset-x-0 top-0 h-[34rem]"
       />
-      <header className="sticky top-0 z-30 px-4 pt-4 sm:px-6 sm:pt-6">
-        <div className="mx-auto grid max-w-6xl grid-cols-[1fr_auto] items-center rounded-2xl border border-white/80 bg-white/90 px-4 py-3 shadow-[0_10px_30px_-22px_rgba(0,33,79,0.6)] backdrop-blur sm:grid-cols-[1fr_auto_1fr] sm:px-5">
+      <header className="relative sticky top-0 z-30 px-4 pt-4 sm:px-6 sm:pt-6">
+        <div className="mx-auto grid max-w-6xl grid-cols-[auto_auto] items-center rounded-2xl border border-white/80 bg-white/90 px-4 py-3 shadow-brand backdrop-blur sm:grid-cols-[auto_1fr_auto] sm:px-5">
           <Link
             to="/"
             className="flex items-center gap-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
@@ -50,7 +62,7 @@ export function PageLayout({ children }: { children: ReactNode }) {
               alt=""
               className="size-11 object-contain"
             />
-            <span className="hidden sm:block">
+            <span>
               <span className="block text-sm font-bold text-brand-navy">
                 HIMTI BINUS
               </span>
@@ -110,15 +122,15 @@ export function PageLayout({ children }: { children: ReactNode }) {
             }
             aria-expanded={menuOpen}
             aria-controls="mobile-navigation"
-            onClick={() => setMenuOpen((open) => !open)}
+            onClick={toggleMenu}
           >
             {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>
         </div>
-        {menuOpen ? (
+        {menuOpen || menuClosing ? (
           <nav
             id="mobile-navigation"
-            className="mx-auto mt-2 grid max-w-6xl gap-1 rounded-2xl border border-white/80 bg-white/95 p-3 shadow-brand backdrop-blur sm:hidden"
+            className={`mobile-navigation absolute inset-x-4 top-full mt-2 grid max-w-6xl gap-1 rounded-2xl border border-white/80 bg-white/95 p-3 shadow-brand backdrop-blur sm:hidden${menuClosing ? " mobile-navigation-closing" : ""}`}
             aria-label="Mobile navigation"
           >
             {[
@@ -134,7 +146,7 @@ export function PageLayout({ children }: { children: ReactNode }) {
                 className={({ isActive }) =>
                   `rounded-xl px-4 py-3 text-center font-semibold ${isActive ? "bg-brand-pale text-brand-navy" : "text-brand-slate hover:bg-brand-pale hover:text-brand-blue"}`
                 }
-                onClick={() => setMenuOpen(false)}
+                onClick={toggleMenu}
               >
                 {label}
               </NavLink>
