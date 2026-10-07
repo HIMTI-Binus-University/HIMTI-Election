@@ -429,6 +429,18 @@ test("reports rejected clipboard writes without claiming success", async () => {
   );
   expect(screen.queryByText("Receipt copied")).not.toBeInTheDocument();
 });
+test("explains that closed election results are not published yet", () => {
+  currentElection = { ...election, status: "CLOSED" };
+  renderAt("/results");
+  expect(
+    screen.getByRole("heading", { name: "Results are not published yet" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(
+      "Candidate totals will appear here when the election results are published.",
+    ),
+  ).toBeInTheDocument();
+});
 
 test("offers and skips the published results ceremony", async () => {
   election.status = "PUBLISHED";
