@@ -85,7 +85,7 @@ function Ballot() {
         title="You cannot vote in this election"
         message={
           eligibility.data?.reason === "NOT_SOCS"
-            ? "Only BINUS School of Computer Science students and lecturers can vote. Your SoCS membership must be verified by an administrator."
+            ? "Only BINUS School of Computer Science students and lecturers can vote. Check that your institution and study program or department are correct."
             : eligibility.data?.reason === "ACCOUNT_INACTIVE"
               ? "Your account is inactive. Contact support to restore voting access."
               : eligibility.data?.reason === "PROFILE_INCOMPLETE"
