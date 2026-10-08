@@ -29,7 +29,7 @@ type Stage =
 
 // Seconds from Begin reveal. The final stretch is part of the same count tween.
 const timing = { race: 1.8, final: 9.3, locked: 11.8, hero: 12.6, done: 15 };
-const particles = Array.from({ length: 12 }, (_, index) => index);
+const particles = Array.from({ length: 48 }, (_, index) => index);
 
 export function ResultsReveal({
   electionId,
@@ -156,7 +156,7 @@ export function ResultsReveal({
       const numeral = root.querySelector(".reveal-count");
       const race = root.querySelector(".reveal-race");
       const hero = root.querySelector(".reveal-hero");
-      const rays = root.querySelector(".winner-rays");
+      const confetti = root.querySelectorAll(".winner-confetti i");
       const motion = { progress: 0 };
       const timeline = gsap.timeline({ paused: true });
       timelineRef.current = timeline;
@@ -315,11 +315,19 @@ export function ResultsReveal({
         { autoAlpha: 1, y: 0, duration: 0.24, ease: "power2.out" },
         timing.hero,
       );
-      if (rays) {
+      if (confetti.length) {
         timeline.fromTo(
-          rays,
-          { autoAlpha: 0, scale: 0.96 },
-          { autoAlpha: 1, scale: 1, duration: 0.55, ease: "power2.out" },
+          confetti,
+          { y: -30, opacity: 1, rotation: (index) => index * 47 },
+          {
+            y: () => (hero?.getBoundingClientRect().height ?? 600) + 40,
+            x: (index) => ((index % 7) - 3) * 18,
+            rotation: (index) => index * 47 + (index % 2 ? 540 : -540),
+            rotationX: 360,
+            duration: 2.6,
+            stagger: 0.018,
+            ease: "power1.in",
+          },
           timing.hero,
         );
       }
@@ -696,11 +704,11 @@ export function ResultsReveal({
           inert={stage !== "hero"}
         >
           {uniqueWinner && (
-            <div className="winner-rays" aria-hidden="true">
+            <div className="winner-confetti" aria-hidden="true">
               {particles.map((particle) => (
                 <i
                   key={particle}
-                  style={{ "--particle": particle } as CSSProperties}
+                  style={{ left: `${(particle * 37) % 100}%` } as CSSProperties}
                 />
               ))}
             </div>
