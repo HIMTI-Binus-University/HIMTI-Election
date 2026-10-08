@@ -29,7 +29,7 @@ type Stage =
 
 // Seconds from Begin reveal. The final stretch is part of the same count tween.
 const timing = { race: 1.8, final: 9.3, locked: 11.8, hero: 12.6, done: 15 };
-const particles = Array.from({ length: 48 }, (_, index) => index);
+const particles = Array.from({ length: 160 }, (_, index) => index);
 
 export function ResultsReveal({
   electionId,
@@ -315,22 +315,39 @@ export function ResultsReveal({
         { autoAlpha: 1, y: 0, duration: 0.24, ease: "power2.out" },
         timing.hero,
       );
-      if (confetti.length) {
+      confetti.forEach((piece) => {
+        const duration = gsap.utils.random(1.5, 2.15);
+        const start = timing.hero + gsap.utils.random(0, 0.15);
         timeline.fromTo(
-          confetti,
-          { y: -30, opacity: 1, rotation: (index) => index * 47 },
+          piece,
+          {
+            y: gsap.utils.random(-70, -20),
+            x: gsap.utils.random(-25, 25),
+            opacity: 1,
+            rotation: gsap.utils.random(0, 360),
+            rotationX: gsap.utils.random(0, 360),
+          },
           {
             y: () => (hero?.getBoundingClientRect().height ?? 600) + 40,
-            x: (index) => ((index % 7) - 3) * 18,
-            rotation: (index) => index * 47 + (index % 2 ? 540 : -540),
-            rotationX: 360,
-            duration: 2.6,
-            stagger: 0.018,
-            ease: "power1.in",
+            rotation: `+=${gsap.utils.random(-720, 720)}`,
+            rotationX: `+=${gsap.utils.random(-540, 540)}`,
+            duration,
+            ease: "none",
           },
-          timing.hero,
+          start,
         );
-      }
+        timeline.to(
+          piece,
+          {
+            x: gsap.utils.random(-75, 75),
+            duration: duration / 4,
+            repeat: 3,
+            yoyo: true,
+            ease: "sine.inOut",
+          },
+          start,
+        );
+      });
       if (uniqueWinner) {
         [261.63, 329.63, 392].forEach((frequency, index) => {
           timeline.call(
