@@ -12,6 +12,7 @@ function StatusContent() {
   const election = useCurrentElection();
   const status = useVoteStatus(election.data?.id, Boolean(election.data));
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
   if (election.isLoading || status.isLoading)
     return <LoadingState label="Checking your ballot status" />;
   if (election.isError || status.isError || !election.data)
@@ -64,9 +65,19 @@ function StatusContent() {
           <button
             className="grid size-11 shrink-0 place-items-center rounded-xl bg-white/10 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-brand-sky"
             aria-label="Copy receipt code"
-            onClick={() => {
-              void navigator.clipboard.writeText(status.data.receiptCode ?? "");
-              setCopied(true);
+            onClick={async () => {
+              setCopied(false);
+              setCopyError(false);
+              try {
+                if (!navigator.clipboard?.writeText)
+                  throw new Error("Clipboard unavailable");
+                await navigator.clipboard.writeText(
+                  status.data.receiptCode ?? "",
+                );
+                setCopied(true);
+              } catch {
+                setCopyError(true);
+              }
             }}
           >
             <Copy className="size-5" />
@@ -78,6 +89,14 @@ function StatusContent() {
           </p>
         ) : null}
       </div>
+      {copyError && (
+        <p
+          role="alert"
+          className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+        >
+          We couldn't copy the receipt code. Please copy it manually.
+        </p>
+      )}
       <p
         aria-live="polite"
         className="mt-3 min-h-5 text-xs font-semibold text-emerald-700"

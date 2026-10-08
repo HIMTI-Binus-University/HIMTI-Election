@@ -1,6 +1,7 @@
 import { ArrowLeft, Vote } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
-import { useCurrentElection } from "@/api/elections";
+import { useSession } from "@/api/auth";
+import { useCurrentElection, useVoteStatus } from "@/api/elections";
 import { CandidateImage } from "@/components/candidate-image";
 import { ErrorState, LoadingState } from "@/components/async-state";
 import { PageLayout } from "@/components/layout/page-layout";
@@ -10,6 +11,8 @@ import { isVotingTime } from "@/utils/date";
 export default function CandidatePage() {
   const { candidateId } = useParams();
   const election = useCurrentElection();
+  const session = useSession();
+  const voteStatus = useVoteStatus(election.data?.id, Boolean(session.data));
   if (election.isLoading)
     return (
       <PageLayout>
@@ -92,13 +95,25 @@ export default function CandidatePage() {
               </ul>
             </section>
           ) : null}
-          {canVote ? (
-            <Button asChild className="mt-8">
-              <Link to="/vote" state={{ candidateId: candidate.id }}>
-                <Vote className="size-4" />
-                Vote for this candidate
-              </Link>
-            </Button>
+          {canVote || voteStatus.data?.hasVoted ? (
+            session.data && !voteStatus.data ? (
+              <Button disabled className="mt-8">
+                {voteStatus.isError
+                  ? "Vote status unavailable"
+                  : "Checking vote status..."}
+              </Button>
+            ) : voteStatus.data?.hasVoted ? (
+              <Button disabled className="mt-8">
+                You already voted
+              </Button>
+            ) : (
+              <Button asChild className="mt-8">
+                <Link to="/vote" state={{ candidateId: candidate.id }}>
+                  <Vote className="size-4" />
+                  Vote for this candidate
+                </Link>
+              </Button>
+            )
           ) : null}
         </div>
       </article>

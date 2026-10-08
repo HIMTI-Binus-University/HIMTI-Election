@@ -70,8 +70,46 @@ dialog::backdrop {
   backdrop-filter: blur(4px);
 }
 @media (prefers-reduced-motion: no-preference) {
+  @media (hover: hover) {
+    .election-button:not(:disabled) {
+      transition:
+        transform 0.16s ease,
+        background-color 0.16s ease,
+        border-color 0.16s ease,
+        box-shadow 0.16s ease;
+    }
+    .election-button:not(:disabled):hover {
+      transform: translateY(-1px);
+      box-shadow: 0 7px 16px rgba(10, 100, 199, 0.18);
+    }
+    .election-button:not(:disabled):active {
+      transform: scale(0.98);
+    }
+    .election-card {
+      transition:
+        transform 0.2s ease,
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+    }
+    .election-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(23, 57, 97, 0.09);
+    }
+    .election-card:not([aria-pressed="true"]):not(:has(input:checked)):hover {
+      border-color: #b9cee4;
+    }
+  }
   .page-reveal {
     animation: page-reveal 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .election-hero > * {
+    animation: page-reveal 0.65s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  }
+  .election-hero > :nth-child(2) {
+    animation-delay: 0.08s;
+  }
+  .election-hero > :nth-child(3) {
+    animation-delay: 0.16s;
   }
   @keyframes page-reveal {
     from {
@@ -79,84 +117,216 @@ dialog::backdrop {
       transform: translateY(12px);
     }
   }
-  .reveal-count {
-    animation: reveal-count 0.7s ease-out both;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mobile-navigation {
+    animation: mobile-navigation-in 0.2s ease-out both;
+    transform-origin: top center;
   }
-  .reveal-bar {
-    width: 0;
-    transition: width 1.4s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-  .reveal-bar.is-visible {
-    width: var(--result-width);
-  }
-  .winner-rays {
-    animation: winner-in 0.8s ease-out both;
-  }
-  @keyframes reveal-count {
+
+  @keyframes mobile-navigation-in {
     from {
       opacity: 0;
-      transform: scale(0.7);
-    }
-    45% {
-      opacity: 1;
+      transform: translateY(-0.5rem) scaleY(0.96);
     }
     to {
-      opacity: 0.2;
-      transform: scale(1.15);
-    }
-  }
-  @keyframes winner-in {
-    from {
-      opacity: 0;
-      transform: scale(0.8);
+      opacity: 1;
+      transform: translateY(0) scaleY(1);
     }
   }
 }
-.reveal-grid {
-  opacity: 0.18;
-  background-image:
-    linear-gradient(rgba(103, 232, 249, 0.18) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(103, 232, 249, 0.18) 1px, transparent 1px);
-  background-size: 42px 42px;
-  mask-image: radial-gradient(circle, black, transparent 75%);
+
+@media (prefers-reduced-motion: no-preference) {
+  .mobile-navigation-closing {
+    animation: mobile-navigation-out 0.18s ease-in both;
+  }
+
+  @keyframes mobile-navigation-out {
+    from {
+      opacity: 1;
+      transform: translateY(0) scaleY(1);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-0.5rem) scaleY(0.96);
+    }
+  }
+}
+.reveal-stage {
+  overflow: hidden;
+}
+.reveal-controls {
+  position: relative;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.reveal-control {
+  display: inline-flex;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.reveal-control:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.reveal-control:focus-visible,
+.reveal-action:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 4px;
+}
+.reveal-control:active,
+.reveal-action:active {
+  transform: scale(0.98);
+}
+.reveal-skip {
+  margin-left: auto;
+}
+.reveal-skip:disabled {
+  visibility: hidden;
+}
+.reveal-body {
+  display: grid;
+  min-height: 34rem;
+}
+.reveal-scene {
+  grid-area: 1 / 1;
+  width: 100%;
+  min-width: 0;
+  padding-block: 2rem;
+  opacity: 0;
+  visibility: hidden;
+}
+.reveal-stage[data-stage="intro"] .reveal-intro {
+  opacity: 1;
+  visibility: visible;
+}
+.reveal-race-title {
+  display: grid;
+  min-height: 2.5em;
+  place-content: center;
+  text-wrap: balance;
+}
+.reveal-name {
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+.race-lane {
+  background: color-mix(in srgb, hsl(var(--brand-navy)) 93%, white);
+}
+.race-lanes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.race-candidate-details {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+.race-total {
+  flex-shrink: 0;
+  font-size: 1.125rem;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.race-progress {
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+.reveal-stage[data-stage="race"] .race-progress,
+.reveal-stage[data-stage="final"] .race-progress {
+  will-change: transform;
 }
 .reveal-stage:fullscreen {
+  display: flex;
+  flex-direction: column;
   width: 100vw;
   max-width: none;
-  min-height: 100dvh;
+  height: 100dvh;
+  overflow-y: auto;
   border-radius: 0;
 }
-.reveal-stage:fullscreen > div:not(.reveal-grid) {
-  min-height: calc(100dvh - 6rem);
+.reveal-stage:fullscreen .reveal-body {
+  flex: 1 0 auto;
 }
-.winner-rays {
+@media (min-width: 640px) {
+  .race-candidate-details {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .race-total {
+    font-size: 1.5rem;
+  }
+}
+.race-track {
+  background-image: linear-gradient(
+    90deg,
+    transparent 24%,
+    rgba(255, 255, 255, 0.08) 25%,
+    transparent 26%,
+    transparent 49%,
+    rgba(255, 255, 255, 0.08) 50%,
+    transparent 51%,
+    transparent 74%,
+    rgba(255, 255, 255, 0.08) 75%,
+    transparent 76%
+  );
+}
+.race-finish {
+  width: 2px;
+  background: #ffffff;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.65);
+  opacity: 0.85;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .race-lane.is-finished {
+    animation: race-finish-glow 0.75s ease-out both;
+  }
+  @keyframes race-finish-glow {
+    45% {
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.55),
+        0 0 24px rgba(255, 255, 255, 0.14);
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+  }
+}
+.winner-confetti {
   position: absolute;
   inset: 0;
   pointer-events: none;
   overflow: hidden;
 }
-.winner-rays::before {
-  content: "";
+.winner-confetti i {
   position: absolute;
-  inset: 12%;
-  background: repeating-conic-gradient(
-    from 0deg,
-    rgba(103, 232, 249, 0.13) 0 8deg,
-    transparent 8deg 24deg
-  );
-  border-radius: 50%;
+  top: 0;
+  width: 6px;
+  height: 12px;
+  border-radius: 1px;
+  background: #ffffff;
+  opacity: 0;
 }
-.winner-rays i {
-  --angle: calc(var(--particle) * 30deg);
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 8px;
-  height: 18px;
-  border-radius: 2px;
-  background: #67e8f9;
-  transform: rotate(var(--angle)) translateY(-15rem);
-  opacity: 0.65;
+.winner-confetti i:nth-child(3n) {
+  background: #004cb5;
+}
+.winner-confetti i:nth-child(3n + 1) {
+  background: #f5c65d;
+  height: 8px;
 }
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -166,5 +336,75 @@ dialog::backdrop {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+.brand-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at 50% 45%,
+    #ffffff 0,
+    #f4f8fd 58%,
+    #e8f1fa 100%
+  );
+}
+
+.brand-intro-mark {
+  width: 92px;
+  height: 92px;
+  display: grid;
+  place-items: center;
+  transform-origin: center;
+  will-change: transform;
+}
+
+.brand-intro-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.app-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  min-height: 100dvh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 16px;
+  color: hsl(var(--brand-navy));
+  background: radial-gradient(
+    circle at 50% 45%,
+    #ffffff 0,
+    #f4f8fd 58%,
+    #e8f1fa 100%
+  );
+}
+
+.app-loading img {
+  animation: himti-loading-spin 0.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+@keyframes himti-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-intro {
+    display: none;
+  }
+
+  .app-loading img {
+    animation: none;
   }
 }

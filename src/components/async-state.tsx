@@ -1,31 +1,24 @@
-import { AlertCircle, LoaderCircle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { AppLoading } from "@/components/app-motion";
 
 export const LoadingState = ({
   label = "Loading election",
 }: {
   label?: string;
-}) => (
-  <div
-    role="status"
-    className="mx-auto flex min-h-[50vh] max-w-xl flex-col items-center justify-center text-center"
-  >
-    <LoaderCircle
-      className="size-9 animate-spin text-brand-blue"
-      aria-hidden="true"
-    />
-    <p className="mt-4 text-sm font-semibold text-brand-slate">{label}</p>
-  </div>
-);
+}) => <AppLoading label={label} />;
 
 export const ErrorState = ({
   title = "We could not load this page",
   message = "Check your connection and try again.",
   retry,
+  children,
 }: {
   title?: string;
   message?: string;
   retry?: () => void;
+  children?: ReactNode;
 }) => (
   <section
     role="alert"
@@ -36,6 +29,7 @@ export const ErrorState = ({
     </span>
     <h1 className="mt-5 text-2xl font-bold text-brand-navy">{title}</h1>
     <p className="mt-3 text-sm leading-6 text-brand-slate">{message}</p>
+    {children}
     {retry ? (
       <Button className="mt-6" onClick={retry}>
         Try again

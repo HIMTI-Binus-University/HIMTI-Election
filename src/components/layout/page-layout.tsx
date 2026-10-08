@@ -1,27 +1,68 @@
-import { LogOut, Menu, X } from "lucide-react";
+import { LogIn, LogOut, Menu, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { Link } from "react-router-dom";
-import { useSession, useSignOut } from "@/api/auth";
+import { Link, NavLink, useLocation } from "react-router-dom";
+import { signInWithGoogle, useSession, useSignOut } from "@/api/auth";
 import { Button } from "@/components/ui/button";
+
+const navClass = ({ isActive }: { isActive: boolean }) =>
+  `rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${isActive ? "bg-brand-pale text-brand-navy" : "text-brand-blue hover:bg-brand-pale hover:text-brand-navy"}`;
 
 export function PageLayout({ children }: { children: ReactNode }) {
   const session = useSession();
   const signOut = useSignOut();
+  const location = useLocation();
+  const [signInError, setSignInError] = useState("");
+  const [signingIn, setSigningIn] = useState(false);
+  const signIn = async () => {
+    setSignInError("");
+    setSigningIn(true);
+    try {
+      await signInWithGoogle(
+        `${location.pathname}${location.search}${location.hash}`,
+      );
+    } catch (error) {
+      setSignInError(
+        error instanceof Error
+          ? error.message
+          : "Sign-in could not be started. Please try again.",
+      );
+      setSigningIn(false);
+    }
+  };
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuClosing, setMenuClosing] = useState(false);
+  const toggleMenu = () => {
+    if (menuOpen) {
+      setMenuClosing(true);
+      window.setTimeout(() => {
+        setMenuOpen(false);
+        setMenuClosing(false);
+      }, 180);
+      return;
+    }
+    setMenuOpen(true);
+  };
   return (
-    <div className="election-wash relative flex min-h-dvh flex-col overflow-hidden text-foreground">
+    <div className="election-wash relative flex min-h-dvh flex-col overflow-x-clip text-foreground">
       <div
         aria-hidden="true"
         className="grid-mark pointer-events-none absolute inset-x-0 top-0 h-[34rem]"
       />
-      <header className="relative z-20 px-4 pt-4 sm:px-6 sm:pt-6">
-        <div className="mx-auto flex max-w-6xl items-center justify-between rounded-2xl border border-white/80 bg-white/90 px-4 py-3 shadow-[0_10px_30px_-22px_rgba(0,33,79,0.6)] backdrop-blur sm:px-5">
+      <header className="relative sticky top-0 z-30 px-4 pt-4 sm:px-6 sm:pt-6">
+        <div className="mx-auto grid max-w-6xl grid-cols-[auto_auto] items-center rounded-2xl border border-white/80 bg-white/90 px-4 py-3 shadow-brand backdrop-blur sm:grid-cols-[auto_1fr_auto] sm:px-5">
           <Link
             to="/"
             className="flex items-center gap-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
           >
-            <img src="/icon-primary.svg" alt="" className="h-11 w-auto" />
-            <span className="hidden sm:block">
+            <img
+              data-himti-brand-target="navbar"
+              src="/logo-himti.png"
+              width={44}
+              height={44}
+              alt=""
+              className="size-11 object-contain"
+            />
+            <span>
               <span className="block text-sm font-bold text-brand-navy">
                 HIMTI BINUS
               </span>
@@ -31,57 +72,65 @@ export function PageLayout({ children }: { children: ReactNode }) {
             </span>
           </Link>
           <nav
-            className="hidden items-center gap-2 sm:flex"
+            className="hidden items-center justify-self-center gap-2 sm:flex"
             aria-label="Main navigation"
           >
-            <Link
-              className="rounded-lg px-3 py-2 text-sm font-semibold text-brand-blue hover:bg-brand-pale hover:text-brand-navy"
-              to="/"
-            >
-              Home
-            </Link>
-            <Link
-              className="rounded-lg px-3 py-2 text-sm font-semibold text-brand-blue hover:bg-brand-pale hover:text-brand-navy"
-              to="/candidates"
-            >
-              Candidates
-            </Link>
-            <Link
-              className="rounded-lg px-3 py-2 text-sm font-semibold text-brand-blue hover:bg-brand-pale hover:text-brand-navy"
-              to="/vote"
-            >
-              Vote
-            </Link>
-            <Link
-              className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-brand-blue hover:bg-brand-pale hover:text-brand-navy lg:inline-flex"
-              to="/results"
-            >
-              Results
-            </Link>
-            {session.data ? (
-              <Button className="px-4" onClick={() => void signOut()}>
-                <LogOut className="size-4" aria-hidden="true" />
-                <span>Sign out</span>
-              </Button>
-            ) : null}
+            {[
+              ["Home", "/"],
+              ["Candidates", "/candidates"],
+              ["Vote", "/vote"],
+              ["Results", "/results"],
+            ].map(([label, to]) => (
+              <NavLink
+                key={to}
+                className={({ isActive }) =>
+                  `${navClass({ isActive })} ${to === "/results" ? "hidden lg:inline-flex" : ""}`
+                }
+                to={to}
+                end
+              >
+                {label}
+              </NavLink>
+            ))}
           </nav>
+          <div className="hidden justify-self-end sm:block">
+            {session.data ? (
+              <Button
+                variant="outline"
+                className="border-red-300 bg-white px-4 text-red-700 hover:bg-red-50"
+                onClick={() => void signOut()}
+              >
+                <LogOut className="size-4" aria-hidden="true" />
+                <span>Logout</span>
+              </Button>
+            ) : (
+              <Button
+                className="px-4"
+                disabled={signingIn}
+                onClick={() => void signIn()}
+              >
+                <LogIn className="size-4" aria-hidden="true" />
+                <span>{signingIn ? "Signing in..." : "Sign in"}</span>
+              </Button>
+            )}
+          </div>
           <button
             type="button"
-            className="grid size-11 place-items-center rounded-xl border border-border bg-white text-brand-navy sm:hidden"
+            className="grid size-11 place-items-center justify-self-end rounded-xl border border-border bg-white text-brand-navy sm:hidden"
             aria-label={
               menuOpen ? "Close navigation menu" : "Open navigation menu"
             }
             aria-expanded={menuOpen}
             aria-controls="mobile-navigation"
-            onClick={() => setMenuOpen((open) => !open)}
+            onClick={toggleMenu}
           >
             {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>
         </div>
-        {menuOpen ? (
+        {menuOpen || menuClosing ? (
           <nav
             id="mobile-navigation"
-            className="mx-auto mt-2 grid max-w-6xl gap-1 rounded-2xl border border-white/80 bg-white/95 p-3 shadow-brand backdrop-blur sm:hidden"
+            className={`mobile-navigation absolute inset-x-4 top-full mt-2 grid max-w-6xl gap-1 rounded-2xl border border-white/80 bg-white/95 p-3 shadow-brand backdrop-blur sm:hidden${menuClosing ? " mobile-navigation-closing" : ""}`}
             aria-label="Mobile navigation"
           >
             {[
@@ -90,47 +139,58 @@ export function PageLayout({ children }: { children: ReactNode }) {
               ["Vote", "/vote"],
               ["Results", "/results"],
             ].map(([label, to]) => (
-              <Link
+              <NavLink
                 key={to}
                 to={to}
-                className="rounded-xl px-4 py-3 font-semibold text-brand-slate hover:bg-brand-pale hover:text-brand-blue"
-                onClick={() => setMenuOpen(false)}
+                end
+                className={({ isActive }) =>
+                  `rounded-xl px-4 py-3 text-center font-semibold ${isActive ? "bg-brand-pale text-brand-navy" : "text-brand-slate hover:bg-brand-pale hover:text-brand-blue"}`
+                }
+                onClick={toggleMenu}
               >
                 {label}
-              </Link>
+              </NavLink>
             ))}
             {session.data ? (
               <button
                 type="button"
-                className="flex items-center gap-2 rounded-xl px-4 py-3 text-left font-semibold text-brand-slate hover:bg-brand-pale hover:text-brand-blue"
+                className="flex items-center justify-center gap-2 rounded-xl border border-red-300 bg-white px-4 py-3 font-semibold text-red-700 hover:bg-red-50"
                 onClick={() => void signOut()}
               >
-                <LogOut className="size-4" aria-hidden="true" /> Sign out
+                <LogOut className="size-4" aria-hidden="true" /> Logout
               </button>
-            ) : null}
+            ) : (
+              <button
+                type="button"
+                disabled={signingIn}
+                className="flex items-center justify-center gap-2 rounded-xl bg-brand-blue px-4 py-3 font-semibold text-white disabled:opacity-50"
+                onClick={() => void signIn()}
+              >
+                <LogIn className="size-4" aria-hidden="true" />{" "}
+                {signingIn ? "Signing in..." : "Sign in"}
+              </button>
+            )}
           </nav>
         ) : null}
+        {signInError && (
+          <p
+            role="alert"
+            className="mx-auto mt-2 max-w-6xl rounded-lg border border-red-200 bg-white px-4 py-3 text-sm text-red-700"
+          >
+            {signInError}
+          </p>
+        )}
       </header>
-      <main className="relative z-10 flex-1 px-4 py-8 sm:px-6 sm:py-12">
+      <main
+        key={location.pathname}
+        className="page-reveal relative z-10 flex-1 px-4 py-8 sm:px-6 sm:py-12"
+      >
         {children}
       </main>
       <footer className="relative z-10 px-4 pb-8 sm:px-6">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-5 rounded-2xl border border-white/80 bg-white/75 px-5 py-5 text-sm font-semibold text-brand-slate backdrop-blur sm:flex-row">
-          <nav
-            className="flex flex-wrap justify-center gap-5"
-            aria-label="Footer navigation"
-          >
-            <Link to="/" className="hover:text-brand-blue">
-              Home
-            </Link>
-            <Link to="/candidates" className="hover:text-brand-blue">
-              Candidates
-            </Link>
-            <Link to="/vote" className="hover:text-brand-blue">
-              Vote
-            </Link>
-          </nav>
-          <p className="text-center text-xs">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 rounded-2xl border border-white/80 bg-white/75 px-5 py-5 text-center text-sm font-semibold text-brand-slate backdrop-blur sm:flex-row">
+          <p>HIMTI Election</p>
+          <p className="text-xs">
             © {new Date().getFullYear()} HIMTI BINUS University
           </p>
         </div>

@@ -19,7 +19,6 @@ export interface Candidate {
   videoUrl: string | null;
   workPrograms: string[];
   experiences: string[];
-  position: number;
   isActive: boolean;
 }
 
@@ -45,7 +44,7 @@ export type EligibilityReason =
   | "PROFILE_INCOMPLETE"
   | "OUTLOOK_NOT_VERIFIED"
   | "OUTLOOK_DOMAIN_NOT_ALLOWED"
-  | "NOT_COMPUTER_SCIENCE"
+  | "NOT_SOCS"
   | "ELECTION_NOT_OPEN"
   | "ALREADY_VOTED";
 
