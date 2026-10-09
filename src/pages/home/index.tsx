@@ -64,9 +64,8 @@ export default function HomePage() {
         : null;
   const milestones = [
     { label: "Voting opens", at: data.startsAt },
-    ...(data.debateAt
-      ? [{ label: "Candidate debate", at: data.debateAt }]
-      : []),
+    ...(data.debateAt ? [{ label: "Debate 1", at: data.debateAt }] : []),
+    ...(data.secondDebateAt ? [{ label: "Debate 2", at: data.secondDebateAt }] : []),
     { label: "Voting closes", at: data.endsAt },
   ].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
 
@@ -188,7 +187,7 @@ export default function HomePage() {
               );
             })}
           </ol>
-          {!data.debateAt && (
+          {!data.debateAt && !data.secondDebateAt && (
             <p className="mt-5 text-sm text-brand-slate">
               Debate schedule to be announced.
             </p>

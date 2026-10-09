@@ -10,7 +10,7 @@ import { BrowserRouter } from "react-router-dom";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import App from "@/App";
 import { signInWithGoogle } from "@/api/auth";
-import type { ElectionStatus } from "@/api/elections";
+import type { Election, ElectionStatus } from "@/api/elections";
 
 const castVote = vi.fn();
 
@@ -30,7 +30,7 @@ const candidate = {
   isActive: true,
 };
 
-const election = {
+const election: Election = {
   id: "election-1",
   slug: "himti-election",
   title: "HIMTI Election",
@@ -39,6 +39,7 @@ const election = {
   startsAt: "2020-01-01T00:00:00.000Z",
   endsAt: "2099-01-01T00:00:00.000Z",
   debateAt: "2098-12-20T12:00:00.000Z",
+  secondDebateAt: null,
   openedAt: "2020-01-01T00:00:00.000Z",
   closedAt: null,
   publishedAt: null,
@@ -178,6 +179,7 @@ test("home orders milestones and keeps voting actions synchronized with the wind
     startsAt: "2026-01-01T00:00:02.000Z",
     endsAt: "2026-01-01T00:00:04.000Z",
     debateAt: "2026-01-01T00:00:06.000Z",
+    secondDebateAt: "2026-01-01T00:00:03.000Z",
     candidates: [
       candidate,
       {
@@ -198,8 +200,7 @@ test("home orders milestones and keeps voting actions synchronized with the wind
   const timeline = screen.getByRole("list", { name: "Election timeline" });
   expect(
     Array.from(timeline.querySelectorAll("h3"), (item) => item.textContent),
-  ).toEqual(["Voting opens", "Voting closes", "Candidate debate"]);
-  expect(screen.getByText("Candidate #03")).toBeInTheDocument();
+  ).toEqual(["Voting opens", "Debate 2", "Voting closes", "Debate 1"]);
   expect(
     screen.getByRole("link", { name: "View Candidate Three's profile" }),
   ).toHaveAttribute("href", "/candidates?candidate=candidate-3");
@@ -217,6 +218,19 @@ test("home orders milestones and keeps voting actions synchronized with the wind
   expect(
     screen.queryByRole("link", { name: "Cast your vote" }),
   ).not.toBeInTheDocument();
+});
+
+test("home shows a second-only debate and announcement only when both are absent", () => {
+  currentElection = { ...election, debateAt: null, secondDebateAt: "2026-01-01T00:00:03.000Z" };
+  renderAt("/");
+  expect(screen.getByText("Debate 2")).toBeInTheDocument();
+  expect(screen.queryByText("Debate schedule to be announced.")).not.toBeInTheDocument();
+  cleanup();
+  currentElection = { ...election, debateAt: null, secondDebateAt: null };
+  renderAt("/");
+  expect(screen.getByText("Debate schedule to be announced.")).toBeInTheDocument();
+  expect(screen.queryByText("Debate 1")).not.toBeInTheDocument();
+  expect(screen.queryByText("Debate 2")).not.toBeInTheDocument();
 });
 
 test("home confirms an existing vote after voting ends", () => {
