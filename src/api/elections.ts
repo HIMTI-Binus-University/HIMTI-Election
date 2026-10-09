@@ -31,6 +31,7 @@ export interface Election {
   startsAt: string;
   endsAt: string;
   debateAt: string | null;
+  secondDebateAt: string | null;
   openedAt: string | null;
   closedAt: string | null;
   publishedAt: string | null;
