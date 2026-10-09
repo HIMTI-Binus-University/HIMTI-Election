@@ -10,7 +10,7 @@ import { BrowserRouter } from "react-router-dom";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import App from "@/App";
 import { signInWithGoogle } from "@/api/auth";
-import type { ElectionStatus } from "@/api/elections";
+import type { Election, ElectionStatus } from "@/api/elections";
 
 const castVote = vi.fn();
 
@@ -30,7 +30,7 @@ const candidate = {
   isActive: true,
 };
 
-const election = {
+const election: Election = {
   id: "election-1",
   slug: "himti-election",
   title: "HIMTI Election",
@@ -40,6 +40,7 @@ const election = {
   endsAt: "2099-01-01T00:00:00.000Z",
   debateAt: "2098-12-20T12:00:00.000Z",
   secondDebateAt: null,
+  openedAt: "2020-01-01T00:00:00.000Z",
   closedAt: null,
   publishedAt: null,
   createdAt: "2020-01-01T00:00:00.000Z",
