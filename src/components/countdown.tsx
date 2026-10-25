@@ -4,10 +4,14 @@ export const ElectionCountdown = ({
   target,
   label,
   now,
+  liveReveal = false,
+  secondDebateAt,
 }: {
   target: string | null;
   label: string;
   now: number;
+  liveReveal?: boolean;
+  secondDebateAt?: string | null;
 }) => {
   const distance = target ? Math.max(0, new Date(target).getTime() - now) : 0;
   const remaining = {
@@ -19,19 +23,37 @@ export const ElectionCountdown = ({
 
   return (
     <section
-      aria-label="Election countdown"
+      aria-label={liveReveal ? "Election live reveal" : "Election countdown"}
       className="flex min-h-[19rem] flex-col justify-center rounded-xl bg-gradient-to-br from-brand-navy via-brand-blue to-brand-navy px-5 py-9 text-white sm:min-h-[22rem] sm:px-10 lg:px-14"
     >
       <h2
         className="text-center text-xl font-bold [text-wrap:balance] sm:text-2xl"
         role="status"
       >
-        {label}
-        {target && (
+        {liveReveal ? "Election results will be revealed live." : label}
+        {!liveReveal && target && (
           <span className="sr-only">: {formatElectionDate(target)}</span>
         )}
       </h2>
-      {target && (
+      {liveReveal ? (
+        <div className="mx-auto mt-6 max-w-2xl text-center">
+          <p className="text-lg leading-8 text-white/90 sm:text-xl">
+            Join us at the second debate.
+          </p>
+          {secondDebateAt ? (
+            <time
+              dateTime={secondDebateAt}
+              className="mt-4 block text-base font-semibold sm:text-lg"
+            >
+              {formatElectionDate(secondDebateAt)}
+            </time>
+          ) : (
+            <p className="mt-4 text-base text-white/90">
+              Second debate schedule to be announced.
+            </p>
+          )}
+        </div>
+      ) : target && (
         <dl className="mx-auto mt-7 grid w-full max-w-4xl grid-cols-4 gap-2 sm:mt-9 sm:gap-4">
           {Object.entries(remaining).map(([unit, value]) => (
             <div

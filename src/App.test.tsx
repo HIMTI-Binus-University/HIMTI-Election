@@ -4,6 +4,7 @@ import {
   fireEvent,
   render,
   screen,
+  within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BrowserRouter } from "react-router-dom";
@@ -40,6 +41,7 @@ const election: Election = {
   endsAt: "2099-01-01T00:00:00.000Z",
   debateAt: "2098-12-20T12:00:00.000Z",
   secondDebateAt: null,
+  removeCountdownForLiveReveal: false,
   openedAt: "2020-01-01T00:00:00.000Z",
   closedAt: null,
   publishedAt: null,
@@ -231,6 +233,48 @@ test("home shows a second-only debate and announcement only when both are absent
   expect(screen.getByText("Debate schedule to be announced.")).toBeInTheDocument();
   expect(screen.queryByText("Debate 1")).not.toBeInTheDocument();
   expect(screen.queryByText("Debate 2")).not.toBeInTheDocument();
+});
+
+test.each(["OPEN", "CLOSED", "PUBLISHED"] as const)(
+  "live reveal replaces the countdown for %s elections without changing voting or results",
+  (status) => {
+    currentElection = {
+      ...election,
+      status,
+      removeCountdownForLiveReveal: true,
+      secondDebateAt: "2026-01-02T08:00:00.000Z",
+    };
+    renderAt("/");
+    const announcement = within(
+      screen.getByRole("region", { name: "Election live reveal" }),
+    );
+    expect(announcement.getByText("Election results will be revealed live.")).toBeInTheDocument();
+    expect(announcement.getByText("Join us at the second debate.")).toBeInTheDocument();
+    expect(announcement.getByText(/2 January 2026.*15[.:]00 WIB/)).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Election countdown" })).not.toBeInTheDocument();
+    if (status === "OPEN") {
+      expect(screen.getByRole("link", { name: "Cast your vote" })).toBeInTheDocument();
+    } else {
+      expect(screen.getByRole("button", { name: "Cast your vote" })).toBeDisabled();
+    }
+    expect(Boolean(screen.queryByRole("link", { name: "View results" }))).toBe(status === "PUBLISHED");
+  },
+);
+
+test("live reveal handles an unscheduled second debate", () => {
+  currentElection = { ...election, removeCountdownForLiveReveal: true };
+  renderAt("/");
+  expect(screen.getByText("Second debate schedule to be announced.")).toBeInTheDocument();
+  expect(screen.queryByRole("region", { name: "Election countdown" })).not.toBeInTheDocument();
+});
+
+test("turning live reveal off restores the countdown", () => {
+  currentElection = { ...election, removeCountdownForLiveReveal: false };
+  renderAt("/");
+  const countdown = within(screen.getByRole("region", { name: "Election countdown" }));
+  expect(countdown.getByRole("status")).toHaveTextContent("Voting ends in");
+  expect(countdown.getByText("seconds")).toBeInTheDocument();
+  expect(screen.queryByText("Election results will be revealed live.")).not.toBeInTheDocument();
 });
 
 test("home confirms an existing vote after voting ends", () => {
