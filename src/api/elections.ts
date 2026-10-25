@@ -32,6 +32,7 @@ export interface Election {
   endsAt: string;
   debateAt: string | null;
   secondDebateAt: string | null;
+  removeCountdownForLiveReveal: boolean;
   openedAt: string | null;
   closedAt: string | null;
   publishedAt: string | null;

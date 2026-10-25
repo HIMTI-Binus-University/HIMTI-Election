@@ -138,6 +138,8 @@ export default function HomePage() {
           target={countdownTarget}
           label={countdownLabel}
           now={now}
+          liveReveal={data.removeCountdownForLiveReveal}
+          secondDebateAt={data.secondDebateAt}
         />
 
         <section
