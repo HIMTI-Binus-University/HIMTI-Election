@@ -63,7 +63,9 @@ export function ResultsReveal({
   const focusPending = useRef(false);
   const timelineRef = useRef<gsap.core.Timeline | null>(null);
   const audioRef = useRef<AudioContext | null>(null);
-  const audioNodes = useRef(new Map<OscillatorNode, GainNode>());
+  const drumBuffer = useRef<AudioBuffer | null>(null);
+  const drumSource = useRef<AudioBufferSourceNode | null>(null);
+  const drumGain = useRef<GainNode | null>(null);
   const audioRequest = useRef(0);
   const soundEnabled = useRef(false);
   const laneRefs = useRef(new Map<string, HTMLElement>());
@@ -85,48 +87,51 @@ export function ResultsReveal({
   const running = stage !== "intro" && stage !== "done";
   const racing = stage === "race" || stage === "final" || stage === "locked";
 
+  const stopDrum = () => {
+    drumSource.current?.stop();
+    drumSource.current?.disconnect();
+    drumSource.current = null;
+    drumGain.current?.disconnect();
+    drumGain.current = null;
+  };
+
+  const playDrum = () => {
+    const context = audioRef.current;
+    const time = timelineRef.current?.time() ?? 0;
+    if (
+      !soundEnabled.current ||
+      document.hidden ||
+      context?.state !== "running" ||
+      !drumBuffer.current ||
+      drumSource.current ||
+      time < timing.race ||
+      time >= timing.locked
+    )
+      return;
+    const source = context.createBufferSource();
+    const gain = context.createGain();
+    source.buffer = drumBuffer.current;
+    gain.gain.setValueAtTime(0.04, context.currentTime);
+    gain.gain.linearRampToValueAtTime(
+      0.35,
+      context.currentTime + timing.locked - time,
+    );
+    source.connect(gain);
+    gain.connect(context.destination);
+    // Align the recording's final drum hit (0:51) with vote lock; keep its tail.
+    source.start(0, Math.max(0, 51 - (timing.locked - time)));
+    drumSource.current = source;
+    drumGain.current = gain;
+  };
+
   const disposeAudio = () => {
     audioRequest.current += 1;
     soundEnabled.current = false;
-    audioNodes.current.forEach((gain, oscillator) => {
-      oscillator.onended = null;
-      oscillator.stop();
-      oscillator.disconnect();
-      gain.disconnect();
-    });
-    audioNodes.current.clear();
+    stopDrum();
     const context = audioRef.current;
     audioRef.current = null;
     if (context && context.state !== "closed")
       void context.close().catch(() => {});
-  };
-
-  const playHit = (frequency = 90, duration = 0.08, volume = 0.035) => {
-    const context = audioRef.current;
-    if (
-      !soundEnabled.current ||
-      document.hidden ||
-      context?.state !== "running"
-    )
-      return;
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    oscillator.type = "triangle";
-    oscillator.frequency.setValueAtTime(frequency, context.currentTime);
-    gain.gain.setValueAtTime(volume, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(
-      0.0001,
-      context.currentTime + duration,
-    );
-    oscillator.connect(gain).connect(context.destination);
-    oscillator.onended = () => {
-      oscillator.disconnect();
-      gain.disconnect();
-      audioNodes.current.delete(oscillator);
-    };
-    oscillator.start();
-    audioNodes.current.set(oscillator, gain);
-    oscillator.stop(context.currentTime + duration);
   };
 
   const finish = () => {
@@ -282,6 +287,7 @@ export function ResultsReveal({
       }
       timeline.set(countdown, { autoAlpha: 0 }, timing.race);
       timeline.call(() => setStage("race"), [], timing.race);
+      timeline.call(playDrum, [], timing.race);
       timeline.fromTo(
         race,
         { autoAlpha: 0, y: 8 },
@@ -299,9 +305,6 @@ export function ResultsReveal({
         timing.race,
       );
       timeline.call(() => setStage("final"), [], timing.final);
-      for (let at = timing.final; at < timing.locked - 0.08; at += 0.145) {
-        timeline.call(() => playHit(), [], at);
-      }
       timeline.call(() => setStage("locked"), [], timing.locked);
       timeline.to(
         race,
@@ -348,15 +351,6 @@ export function ResultsReveal({
           start,
         );
       });
-      if (uniqueWinner) {
-        [261.63, 329.63, 392].forEach((frequency, index) => {
-          timeline.call(
-            () => playHit(frequency, 0.55, 0.045),
-            [],
-            timing.hero + index * 0.09,
-          );
-        });
-      }
       timeline.to(hero, { autoAlpha: 0, duration: 0.16 }, timing.done - 0.16);
       timeline.call(finish, [], timing.done);
       if (!document.hidden) timeline.play(0);
@@ -458,10 +452,24 @@ export function ResultsReveal({
       const context = new AudioContext();
       audioRef.current = context;
       await context.resume();
-      if (request === audioRequest.current && document.hidden) {
+      if (request !== audioRequest.current) return;
+      if (document.hidden) {
         disposeAudio();
         setSound(false);
+        return;
       }
+      if (!drumBuffer.current) {
+        const response = await fetch(
+          `${import.meta.env.BASE_URL}audio/drum-roll.mp3`,
+        );
+        if (!response.ok) throw new Error("Unable to load drum roll");
+        const buffer = await context.decodeAudioData(
+          await response.arrayBuffer(),
+        );
+        if (request !== audioRequest.current) return;
+        drumBuffer.current = buffer;
+      }
+      playDrum();
     } catch {
       if (request === audioRequest.current) {
         disposeAudio();

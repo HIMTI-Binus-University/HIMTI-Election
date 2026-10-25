@@ -10,6 +10,7 @@ import userEvent from "@testing-library/user-event";
 import { BrowserRouter } from "react-router-dom";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import App from "@/App";
+import { gsap } from "@/lib/motion";
 import { signInWithGoogle } from "@/api/auth";
 import type { Election, ElectionStatus } from "@/api/elections";
 
@@ -223,14 +224,22 @@ test("home orders milestones and keeps voting actions synchronized with the wind
 });
 
 test("home shows a second-only debate and announcement only when both are absent", () => {
-  currentElection = { ...election, debateAt: null, secondDebateAt: "2026-01-01T00:00:03.000Z" };
+  currentElection = {
+    ...election,
+    debateAt: null,
+    secondDebateAt: "2026-01-01T00:00:03.000Z",
+  };
   renderAt("/");
   expect(screen.getByText("Debate 2")).toBeInTheDocument();
-  expect(screen.queryByText("Debate schedule to be announced.")).not.toBeInTheDocument();
+  expect(
+    screen.queryByText("Debate schedule to be announced."),
+  ).not.toBeInTheDocument();
   cleanup();
   currentElection = { ...election, debateAt: null, secondDebateAt: null };
   renderAt("/");
-  expect(screen.getByText("Debate schedule to be announced.")).toBeInTheDocument();
+  expect(
+    screen.getByText("Debate schedule to be announced."),
+  ).toBeInTheDocument();
   expect(screen.queryByText("Debate 1")).not.toBeInTheDocument();
   expect(screen.queryByText("Debate 2")).not.toBeInTheDocument();
 });
@@ -553,4 +562,82 @@ test("skipping an active reveal keeps the final results visible", async () => {
   expect(
     screen.queryByRole("button", { name: "Skip" }),
   ).not.toBeInTheDocument();
+});
+
+test("drum roll follows the race timeline and stops when muted", async () => {
+  election.status = "PUBLISHED";
+  publishedResults = {
+    participationCount: 8,
+    ballotCount: 8,
+    valid: true,
+    winnerCandidateId: candidate.id,
+    isTie: false,
+    results: [{ candidate, votes: 8 }],
+  };
+  const source = {
+    buffer: null,
+    connect: vi.fn(),
+    start: vi.fn(),
+    stop: vi.fn(),
+    disconnect: vi.fn(),
+  };
+  const gain = {
+    gain: {
+      setValueAtTime: vi.fn(),
+      linearRampToValueAtTime: vi.fn(),
+    },
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+  };
+  const fetchAudio = vi.fn().mockResolvedValue({
+    ok: true,
+    arrayBuffer: async () => new ArrayBuffer(0),
+  });
+  vi.stubGlobal("fetch", fetchAudio);
+  vi.stubGlobal(
+    "AudioContext",
+    class {
+      state = "running";
+      currentTime = 0;
+      destination = {};
+      resume = async () => {};
+      close = async () => {};
+      decodeAudioData = async () => ({});
+      createBufferSource = () => source;
+      createGain = () => gain;
+    },
+  );
+  const timelines = vi.spyOn(gsap, "timeline");
+  try {
+    renderAt("/results");
+    expect(fetchAudio).not.toHaveBeenCalled();
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Enable reveal sound" }),
+      );
+    });
+    expect(fetchAudio).toHaveBeenCalledWith("/audio/drum-roll.mp3");
+    expect(source.start).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Begin reveal" }));
+    const timeline = timelines.mock.results.at(-1)!.value;
+    act(() => {
+      timeline.pause().time(2, false);
+    });
+    expect(source.start).toHaveBeenCalledWith(0, 41.2);
+    expect(source.connect).toHaveBeenCalledWith(gain);
+    expect(gain.gain.setValueAtTime).toHaveBeenCalledWith(0.04, 0);
+    expect(gain.gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.35, 9.8);
+    act(() => {
+      timeline.time(11.8, false);
+    });
+    expect(source.stop).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Mute reveal sound" }));
+    expect(source.stop).toHaveBeenCalledOnce();
+    expect(source.disconnect).toHaveBeenCalledOnce();
+    expect(gain.disconnect).toHaveBeenCalledOnce();
+  } finally {
+    cleanup();
+    timelines.mockRestore();
+    vi.unstubAllGlobals();
+  }
 });
