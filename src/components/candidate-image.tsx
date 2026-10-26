@@ -11,14 +11,14 @@ export const CandidateImage = ({
   name: string;
   className?: string;
 }) => {
-  const [failed, setFailed] = useState(false);
-  const safe = src && /^https?:\/\//i.test(src) && !failed;
+  const [failed, setFailed] = useState<string | null>(null);
+  const safe = src && src !== failed && /^https?:\/\//i.test(src);
   return safe ? (
     <img
       src={src}
       alt={`Portrait of ${name}`}
       className={cn("h-full w-full object-cover", className)}
-      onError={() => setFailed(true)}
+      onError={() => setFailed(src)}
     />
   ) : (
     <div
