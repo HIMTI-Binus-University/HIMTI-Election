@@ -28,7 +28,8 @@ type Stage =
   "intro" | "countdown" | "race" | "final" | "locked" | "hero" | "done";
 
 // Seconds from Begin reveal. The final stretch is part of the same count tween.
-const timing = { race: 1.8, final: 9.3, locked: 11.8, hero: 12.6, done: 15 };
+// Let the drum's natural tail finish, then leave room for the full winner SFX.
+const timing = { race: 1.8, final: 9.3, locked: 11.8, hero: 13.6, done: 16.4 };
 const particles = Array.from({ length: 160 }, (_, index) => index);
 
 export function ResultsReveal({
@@ -64,6 +65,8 @@ export function ResultsReveal({
   const timelineRef = useRef<gsap.core.Timeline | null>(null);
   const audioRef = useRef<AudioContext | null>(null);
   const drumBuffer = useRef<AudioBuffer | null>(null);
+  const winnerBuffer = useRef<AudioBuffer | null>(null);
+  const winnerSource = useRef<AudioBufferSourceNode | null>(null);
   const drumSource = useRef<AudioBufferSourceNode | null>(null);
   const drumGain = useRef<GainNode | null>(null);
   const audioRequest = useRef(0);
@@ -124,10 +127,34 @@ export function ResultsReveal({
     drumGain.current = gain;
   };
 
+  const playWinner = () => {
+    const context = audioRef.current;
+    const time = timelineRef.current?.time() ?? 0;
+    if (
+      !uniqueWinner ||
+      !soundEnabled.current ||
+      document.hidden ||
+      context?.state !== "running" ||
+      !winnerBuffer.current ||
+      winnerSource.current ||
+      time < timing.hero ||
+      time - timing.hero >= winnerBuffer.current.duration
+    )
+      return;
+    const source = context.createBufferSource();
+    source.buffer = winnerBuffer.current;
+    source.connect(context.destination);
+    source.start(0, time - timing.hero);
+    winnerSource.current = source;
+  };
+
   const disposeAudio = () => {
     audioRequest.current += 1;
     soundEnabled.current = false;
     stopDrum();
+    winnerSource.current?.stop();
+    winnerSource.current?.disconnect();
+    winnerSource.current = null;
     const context = audioRef.current;
     audioRef.current = null;
     if (context && context.state !== "closed")
@@ -312,6 +339,14 @@ export function ResultsReveal({
         timing.hero - 0.18,
       );
       timeline.call(() => setStage("hero"), [], timing.hero);
+      timeline.call(
+        () => {
+          stopDrum();
+          playWinner();
+        },
+        [],
+        timing.hero,
+      );
       timeline.fromTo(
         hero,
         { autoAlpha: 0, y: 8 },
@@ -458,18 +493,21 @@ export function ResultsReveal({
         setSound(false);
         return;
       }
-      if (!drumBuffer.current) {
-        const response = await fetch(
-          `${import.meta.env.BASE_URL}audio/drum-roll.mp3`,
-        );
-        if (!response.ok) throw new Error("Unable to load drum roll");
-        const buffer = await context.decodeAudioData(
-          await response.arrayBuffer(),
+      if (!drumBuffer.current || !winnerBuffer.current) {
+        const buffers = await Promise.all(
+          ["drum-roll", "winner"].map(async (name) => {
+            const response = await fetch(
+              `${import.meta.env.BASE_URL}audio/${name}.mp3`,
+            );
+            if (!response.ok) throw new Error("Unable to load reveal sound");
+            return context.decodeAudioData(await response.arrayBuffer());
+          }),
         );
         if (request !== audioRequest.current) return;
-        drumBuffer.current = buffer;
+        [drumBuffer.current, winnerBuffer.current] = buffers;
       }
       playDrum();
+      playWinner();
     } catch {
       if (request === audioRequest.current) {
         disposeAudio();

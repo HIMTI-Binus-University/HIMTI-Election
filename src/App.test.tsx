@@ -129,6 +129,16 @@ const renderAt = (path: string) => {
   );
 };
 
+test("candidate portraits use the photo URL configured in admin", () => {
+  currentElection = {
+    ...election,
+    candidates: [{ ...candidate, photoUrl: "https://example.com/admin-photo.jpg" }],
+  };
+  renderAt("/");
+  expect(screen.getByRole("img", { name: "Portrait of Candidate One" }))
+    .toHaveAttribute("src", "https://example.com/admin-photo.jpg");
+});
+
 test("auth errors retry in election without exposing raw error text", async () => {
   vi.mocked(signInWithGoogle).mockRejectedValueOnce(new Error("offline"));
   renderAt("/auth/error?error=state_mismatch&error_description=untrusted");
@@ -641,3 +651,115 @@ test("drum roll follows the race timeline and stops when muted", async () => {
     vi.unstubAllGlobals();
   }
 });
+
+test.each(["winner", "tie", "none"])(
+  "winner sound follows the drum roll and respects mute/skip (%s)",
+  async (outcome) => {
+    election.status = "PUBLISHED";
+    publishedResults = {
+      participationCount: 8,
+      ballotCount: 8,
+      valid: true,
+      winnerCandidateId: outcome === "winner" ? candidate.id : null,
+      isTie: outcome === "tie",
+      results: [{ candidate, votes: 8 }],
+    };
+    const sources: Array<{
+      buffer: unknown;
+      connect: ReturnType<typeof vi.fn>;
+      start: ReturnType<typeof vi.fn>;
+      stop: ReturnType<typeof vi.fn>;
+      disconnect: ReturnType<typeof vi.fn>;
+    }> = [];
+    const close = vi.fn(async () => {});
+    const fetchAudio = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: async () => new ArrayBuffer(0),
+    });
+    vi.stubGlobal("fetch", fetchAudio);
+    vi.stubGlobal(
+      "AudioContext",
+      class {
+        state = "running";
+        currentTime = 0;
+        destination = {};
+        resume = async () => {};
+        close = close;
+        decodeAudioData = async () => ({ duration: 2.633 });
+        createGain = () => ({
+          gain: {
+            setValueAtTime: vi.fn(),
+            linearRampToValueAtTime: vi.fn(),
+          },
+          connect: vi.fn(),
+          disconnect: vi.fn(),
+        });
+        createBufferSource = () => {
+          const source = {
+            buffer: null,
+            connect: vi.fn(),
+            start: vi.fn(),
+            stop: vi.fn(),
+            disconnect: vi.fn(),
+          };
+          sources.push(source);
+          return source;
+        };
+      },
+    );
+    const timelines = vi.spyOn(gsap, "timeline");
+    try {
+      renderAt("/results");
+      await act(async () => {
+        fireEvent.click(
+          screen.getByRole("button", { name: "Enable reveal sound" }),
+        );
+      });
+      expect(fetchAudio).toHaveBeenCalledWith("/audio/winner.mp3");
+      fireEvent.click(screen.getByRole("button", { name: "Begin reveal" }));
+      const timeline = timelines.mock.results.at(-1)!.value;
+      act(() => {
+        timeline.pause().time(2, false);
+      });
+      expect(sources).toHaveLength(1);
+      act(() => {
+        timeline.time(13.5, false);
+      });
+      expect(sources).toHaveLength(1);
+      act(() => {
+        timeline.time(13.6, false);
+      });
+      expect(sources[0].stop).toHaveBeenCalledOnce();
+      expect(sources).toHaveLength(outcome === "winner" ? 2 : 1);
+      if (outcome === "winner") {
+        expect(sources[1].start).toHaveBeenCalledWith(0, 0);
+        act(() => {
+          timeline.time(15.3, false);
+        });
+        expect(sources[1].stop).not.toHaveBeenCalled();
+      }
+      fireEvent.click(screen.getByRole("button", { name: "Mute reveal sound" }));
+      for (const source of sources) {
+        expect(source.stop).toHaveBeenCalledOnce();
+        expect(source.disconnect).toHaveBeenCalledOnce();
+      }
+      await act(async () => {
+        fireEvent.click(
+          screen.getByRole("button", { name: "Enable reveal sound" }),
+        );
+      });
+      if (outcome === "winner") {
+        expect(sources.at(-1)!.start.mock.calls[0][1]).toBeCloseTo(1.7);
+      }
+      fireEvent.click(screen.getByRole("button", { name: "Skip" }));
+      expect(close).toHaveBeenCalledTimes(2);
+      for (const source of sources) {
+        expect(source.stop).toHaveBeenCalledOnce();
+      }
+    } finally {
+      cleanup();
+      timelines.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  },
+);
