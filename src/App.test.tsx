@@ -4,13 +4,15 @@ import {
   fireEvent,
   render,
   screen,
+  within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BrowserRouter } from "react-router-dom";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import App from "@/App";
+import { gsap } from "@/lib/motion";
 import { signInWithGoogle } from "@/api/auth";
-import type { Election, ElectionStatus } from "@/api/elections";
+import type { Election, ElectionStatus, Eligibility } from "@/api/elections";
 
 const castVote = vi.fn();
 
@@ -40,6 +42,7 @@ const election: Election = {
   endsAt: "2099-01-01T00:00:00.000Z",
   debateAt: "2098-12-20T12:00:00.000Z",
   secondDebateAt: null,
+  removeCountdownForLiveReveal: false,
   openedAt: "2020-01-01T00:00:00.000Z",
   closedAt: null,
   publishedAt: null,
@@ -49,6 +52,7 @@ const election: Election = {
 };
 
 let currentElection: typeof election | null = election;
+let eligibility: Eligibility = { eligible: true, reason: null, hasVoted: false };
 
 let voteStatus = {
   hasVoted: false,
@@ -97,7 +101,7 @@ vi.mock("@/api/elections", () => ({
     refetch: vi.fn(),
   }),
   useEligibility: () => ({
-    data: { eligible: true, reason: null, hasVoted: false },
+    data: eligibility,
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
@@ -126,6 +130,16 @@ const renderAt = (path: string) => {
   );
 };
 
+test("candidate portraits use the photo URL configured in admin", () => {
+  currentElection = {
+    ...election,
+    candidates: [{ ...candidate, photoUrl: "https://example.com/admin-photo.jpg" }],
+  };
+  renderAt("/");
+  expect(screen.getByRole("img", { name: "Portrait of Candidate One" }))
+    .toHaveAttribute("src", "https://example.com/admin-photo.jpg");
+});
+
 test("auth errors retry in election without exposing raw error text", async () => {
   vi.mocked(signInWithGoogle).mockRejectedValueOnce(new Error("offline"));
   renderAt("/auth/error?error=state_mismatch&error_description=untrusted");
@@ -144,6 +158,7 @@ test("auth errors retry in election without exposing raw error text", async () =
 
 beforeEach(() => {
   signedIn = true;
+  eligibility = { eligible: true, reason: null, hasVoted: false };
   vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
   castVote.mockReset();
@@ -172,6 +187,21 @@ afterEach(() => {
   cleanup();
   vi.useRealTimers();
 });
+
+test.each(["NOT_SOCS", "OUTLOOK_DOMAIN_NOT_ALLOWED"] as const)(
+  "ineligible voters see the BINUS Other email requirement (%s)",
+  (reason) => {
+    eligibility = { eligible: false, reason, hasVoted: false };
+    renderAt("/vote");
+    expect(
+      screen.getByRole("heading", { name: "You cannot vote in this election" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Other.*@binus\.edu/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /confirm.*vote/i }))
+      .not.toBeInTheDocument();
+    expect(castVote).not.toHaveBeenCalled();
+  },
+);
 
 test("home orders milestones and keeps voting actions synchronized with the window", () => {
   currentElection = {
@@ -221,16 +251,66 @@ test("home orders milestones and keeps voting actions synchronized with the wind
 });
 
 test("home shows a second-only debate and announcement only when both are absent", () => {
-  currentElection = { ...election, debateAt: null, secondDebateAt: "2026-01-01T00:00:03.000Z" };
+  currentElection = {
+    ...election,
+    debateAt: null,
+    secondDebateAt: "2026-01-01T00:00:03.000Z",
+  };
   renderAt("/");
   expect(screen.getByText("Debate 2")).toBeInTheDocument();
-  expect(screen.queryByText("Debate schedule to be announced.")).not.toBeInTheDocument();
+  expect(
+    screen.queryByText("Debate schedule to be announced."),
+  ).not.toBeInTheDocument();
   cleanup();
   currentElection = { ...election, debateAt: null, secondDebateAt: null };
   renderAt("/");
-  expect(screen.getByText("Debate schedule to be announced.")).toBeInTheDocument();
+  expect(
+    screen.getByText("Debate schedule to be announced."),
+  ).toBeInTheDocument();
   expect(screen.queryByText("Debate 1")).not.toBeInTheDocument();
   expect(screen.queryByText("Debate 2")).not.toBeInTheDocument();
+});
+
+test.each(["OPEN", "CLOSED", "PUBLISHED"] as const)(
+  "live reveal replaces the countdown for %s elections without changing voting or results",
+  (status) => {
+    currentElection = {
+      ...election,
+      status,
+      removeCountdownForLiveReveal: true,
+      secondDebateAt: "2026-01-02T08:00:00.000Z",
+    };
+    renderAt("/");
+    const announcement = within(
+      screen.getByRole("region", { name: "Election live reveal" }),
+    );
+    expect(announcement.getByText("Election results will be revealed live.")).toBeInTheDocument();
+    expect(announcement.getByText("Join us at the second debate.")).toBeInTheDocument();
+    expect(announcement.getByText(/2 January 2026.*15[.:]00 WIB/)).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Election countdown" })).not.toBeInTheDocument();
+    if (status === "OPEN") {
+      expect(screen.getByRole("link", { name: "Cast your vote" })).toBeInTheDocument();
+    } else {
+      expect(screen.getByRole("button", { name: "Cast your vote" })).toBeDisabled();
+    }
+    expect(Boolean(screen.queryByRole("link", { name: "View results" }))).toBe(status === "PUBLISHED");
+  },
+);
+
+test("live reveal handles an unscheduled second debate", () => {
+  currentElection = { ...election, removeCountdownForLiveReveal: true };
+  renderAt("/");
+  expect(screen.getByText("Second debate schedule to be announced.")).toBeInTheDocument();
+  expect(screen.queryByRole("region", { name: "Election countdown" })).not.toBeInTheDocument();
+});
+
+test("turning live reveal off restores the countdown", () => {
+  currentElection = { ...election, removeCountdownForLiveReveal: false };
+  renderAt("/");
+  const countdown = within(screen.getByRole("region", { name: "Election countdown" }));
+  expect(countdown.getByRole("status")).toHaveTextContent("Voting ends in");
+  expect(countdown.getByText("seconds")).toBeInTheDocument();
+  expect(screen.queryByText("Election results will be revealed live.")).not.toBeInTheDocument();
 });
 
 test("home confirms an existing vote after voting ends", () => {
@@ -510,3 +590,193 @@ test("skipping an active reveal keeps the final results visible", async () => {
     screen.queryByRole("button", { name: "Skip" }),
   ).not.toBeInTheDocument();
 });
+
+test("drum roll follows the race timeline and stops when muted", async () => {
+  election.status = "PUBLISHED";
+  publishedResults = {
+    participationCount: 8,
+    ballotCount: 8,
+    valid: true,
+    winnerCandidateId: candidate.id,
+    isTie: false,
+    results: [{ candidate, votes: 8 }],
+  };
+  const source = {
+    buffer: null,
+    connect: vi.fn(),
+    start: vi.fn(),
+    stop: vi.fn(),
+    disconnect: vi.fn(),
+  };
+  const gain = {
+    gain: {
+      setValueAtTime: vi.fn(),
+      linearRampToValueAtTime: vi.fn(),
+    },
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+  };
+  const fetchAudio = vi.fn().mockResolvedValue({
+    ok: true,
+    arrayBuffer: async () => new ArrayBuffer(0),
+  });
+  vi.stubGlobal("fetch", fetchAudio);
+  vi.stubGlobal(
+    "AudioContext",
+    class {
+      state = "running";
+      currentTime = 0;
+      destination = {};
+      resume = async () => {};
+      close = async () => {};
+      decodeAudioData = async () => ({});
+      createBufferSource = () => source;
+      createGain = () => gain;
+    },
+  );
+  const timelines = vi.spyOn(gsap, "timeline");
+  try {
+    renderAt("/results");
+    expect(fetchAudio).not.toHaveBeenCalled();
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Enable reveal sound" }),
+      );
+    });
+    expect(fetchAudio).toHaveBeenCalledWith("/audio/drum-roll.mp3");
+    expect(source.start).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Begin reveal" }));
+    const timeline = timelines.mock.results.at(-1)!.value;
+    act(() => {
+      timeline.pause().time(2, false);
+    });
+    expect(source.start).toHaveBeenCalledWith(0, 41.2);
+    expect(source.connect).toHaveBeenCalledWith(gain);
+    expect(gain.gain.setValueAtTime).toHaveBeenCalledWith(0.04, 0);
+    expect(gain.gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.35, 9.8);
+    act(() => {
+      timeline.time(11.8, false);
+    });
+    expect(source.stop).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Mute reveal sound" }));
+    expect(source.stop).toHaveBeenCalledOnce();
+    expect(source.disconnect).toHaveBeenCalledOnce();
+    expect(gain.disconnect).toHaveBeenCalledOnce();
+  } finally {
+    cleanup();
+    timelines.mockRestore();
+    vi.unstubAllGlobals();
+  }
+});
+
+test.each(["winner", "tie", "none"])(
+  "winner sound follows the drum roll and respects mute/skip (%s)",
+  async (outcome) => {
+    election.status = "PUBLISHED";
+    publishedResults = {
+      participationCount: 8,
+      ballotCount: 8,
+      valid: true,
+      winnerCandidateId: outcome === "winner" ? candidate.id : null,
+      isTie: outcome === "tie",
+      results: [{ candidate, votes: 8 }],
+    };
+    const sources: Array<{
+      buffer: unknown;
+      connect: ReturnType<typeof vi.fn>;
+      start: ReturnType<typeof vi.fn>;
+      stop: ReturnType<typeof vi.fn>;
+      disconnect: ReturnType<typeof vi.fn>;
+    }> = [];
+    const close = vi.fn(async () => {});
+    const fetchAudio = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: async () => new ArrayBuffer(0),
+    });
+    vi.stubGlobal("fetch", fetchAudio);
+    vi.stubGlobal(
+      "AudioContext",
+      class {
+        state = "running";
+        currentTime = 0;
+        destination = {};
+        resume = async () => {};
+        close = close;
+        decodeAudioData = async () => ({ duration: 2.633 });
+        createGain = () => ({
+          gain: {
+            setValueAtTime: vi.fn(),
+            linearRampToValueAtTime: vi.fn(),
+          },
+          connect: vi.fn(),
+          disconnect: vi.fn(),
+        });
+        createBufferSource = () => {
+          const source = {
+            buffer: null,
+            connect: vi.fn(),
+            start: vi.fn(),
+            stop: vi.fn(),
+            disconnect: vi.fn(),
+          };
+          sources.push(source);
+          return source;
+        };
+      },
+    );
+    const timelines = vi.spyOn(gsap, "timeline");
+    try {
+      renderAt("/results");
+      await act(async () => {
+        fireEvent.click(
+          screen.getByRole("button", { name: "Enable reveal sound" }),
+        );
+      });
+      expect(fetchAudio).toHaveBeenCalledWith("/audio/winner.mp3");
+      fireEvent.click(screen.getByRole("button", { name: "Begin reveal" }));
+      const timeline = timelines.mock.results.at(-1)!.value;
+      act(() => {
+        timeline.pause().time(2, false);
+      });
+      expect(sources).toHaveLength(1);
+      act(() => {
+        timeline.time(13.5, false);
+      });
+      expect(sources).toHaveLength(1);
+      act(() => {
+        timeline.time(13.6, false);
+      });
+      expect(sources[0].stop).toHaveBeenCalledOnce();
+      expect(sources).toHaveLength(outcome === "winner" ? 2 : 1);
+      if (outcome === "winner") {
+        expect(sources[1].start).toHaveBeenCalledWith(0, 0);
+        act(() => {
+          timeline.time(15.3, false);
+        });
+        expect(sources[1].stop).not.toHaveBeenCalled();
+      }
+      fireEvent.click(screen.getByRole("button", { name: "Mute reveal sound" }));
+      for (const source of sources) {
+        expect(source.stop).toHaveBeenCalledOnce();
+        expect(source.disconnect).toHaveBeenCalledOnce();
+      }
+      await act(async () => {
+        fireEvent.click(
+          screen.getByRole("button", { name: "Enable reveal sound" }),
+        );
+      });
+      if (outcome === "winner") {
+        expect(sources.at(-1)!.start.mock.calls[0][1]).toBeCloseTo(1.7);
+      }
+      fireEvent.click(screen.getByRole("button", { name: "Skip" }));
+      expect(close).toHaveBeenCalledTimes(2);
+      for (const source of sources) {
+        expect(source.stop).toHaveBeenCalledOnce();
+      }
+    } finally {
+      cleanup();
+      timelines.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  },
+);
