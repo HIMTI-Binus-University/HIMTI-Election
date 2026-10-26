@@ -85,7 +85,7 @@ function Ballot() {
         title="You cannot vote in this election"
         message={
           eligibility.data?.reason === "NOT_SOCS"
-            ? "Only BINUS School of Computer Science students and lecturers can vote. Check that your institution and study program or department are correct."
+            ? "Voting is open to BINUS School of Computer Science students and lecturers, and BINUS Other members with a verified @binus.edu email. Check your institution and membership details."
             : eligibility.data?.reason === "ACCOUNT_INACTIVE"
               ? "Your account is inactive. Contact support to restore voting access."
               : eligibility.data?.reason === "PROFILE_INCOMPLETE"
@@ -93,14 +93,14 @@ function Ballot() {
                 : eligibility.data?.reason === "OUTLOOK_NOT_VERIFIED"
                   ? "Verify your BINUS Outlook email before voting."
                   : eligibility.data?.reason === "OUTLOOK_DOMAIN_NOT_ALLOWED"
-                    ? "Voting requires a verified binus.ac.id or binus.edu email."
+                    ? "Voting requires a verified BINUS email. Other members must use @binus.edu; students and lecturers may use @binus.ac.id or @binus.edu."
                     : "Voting is not available for your account at this time."
         }
       >
         <div className="mt-6 border-t border-border pt-6">
           <p className="text-sm leading-6 text-brand-slate">
-            If you are a School of Computer Science student or lecturer but
-            cannot vote, contact us on WhatsApp for help.
+            If you meet the voting requirements but cannot vote, contact us on
+            WhatsApp for help.
           </p>
           <h2 className="mt-5 text-sm font-semibold text-brand-navy">
             Contact Person

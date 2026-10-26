@@ -12,7 +12,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import App from "@/App";
 import { gsap } from "@/lib/motion";
 import { signInWithGoogle } from "@/api/auth";
-import type { Election, ElectionStatus } from "@/api/elections";
+import type { Election, ElectionStatus, Eligibility } from "@/api/elections";
 
 const castVote = vi.fn();
 
@@ -52,6 +52,7 @@ const election: Election = {
 };
 
 let currentElection: typeof election | null = election;
+let eligibility: Eligibility = { eligible: true, reason: null, hasVoted: false };
 
 let voteStatus = {
   hasVoted: false,
@@ -100,7 +101,7 @@ vi.mock("@/api/elections", () => ({
     refetch: vi.fn(),
   }),
   useEligibility: () => ({
-    data: { eligible: true, reason: null, hasVoted: false },
+    data: eligibility,
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
@@ -157,6 +158,7 @@ test("auth errors retry in election without exposing raw error text", async () =
 
 beforeEach(() => {
   signedIn = true;
+  eligibility = { eligible: true, reason: null, hasVoted: false };
   vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
   castVote.mockReset();
@@ -185,6 +187,21 @@ afterEach(() => {
   cleanup();
   vi.useRealTimers();
 });
+
+test.each(["NOT_SOCS", "OUTLOOK_DOMAIN_NOT_ALLOWED"] as const)(
+  "ineligible voters see the BINUS Other email requirement (%s)",
+  (reason) => {
+    eligibility = { eligible: false, reason, hasVoted: false };
+    renderAt("/vote");
+    expect(
+      screen.getByRole("heading", { name: "You cannot vote in this election" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Other.*@binus\.edu/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /confirm.*vote/i }))
+      .not.toBeInTheDocument();
+    expect(castVote).not.toHaveBeenCalled();
+  },
+);
 
 test("home orders milestones and keeps voting actions synchronized with the window", () => {
   currentElection = {
